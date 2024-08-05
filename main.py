@@ -13,10 +13,17 @@ class AvaliarConta:
             clean_expression = self.expression.replace(" ", "")
 
             # Verifica se a expressão contém apenas caracteres permitidos (números, operadores e parênteses)
+            valid_chars = "0123456789+-*/()."
             for char in clean_expression:
-                if not (char.isdigit() or char in '+-*/().'):
+                if char not in valid_chars:
                     return f"Erro: Caractere inválido '{char}' na expressão"
-            
+
+            # Verifica se a expressão tem uma sintaxe básica válida
+            # Aqui podemos melhorar com uma expressão regular ou uma análise mais robusta
+            # Usando um check simples para capturar alguns casos comuns de erro de sintaxe
+            if any(op1 + op2 in clean_expression for op1 in "+-*/" for op2 in "+*/)") or clean_expression[-1] in "+-*/":
+                return "Erro: Sintaxe inválida na expressão"
+
             # Avalia a expressão de forma segura
             result = eval(clean_expression)
             return str(result)
