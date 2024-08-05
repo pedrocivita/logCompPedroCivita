@@ -5,17 +5,15 @@ class AvaliarConta:
         self.expression = expression
 
     def avaliar(self):
-        if not self.expression.strip():
+        if not self.expression:
             return "Erro: Expressão vazia"
 
         try:
-            clean_expression = self.expression.replace(" ", "")
-
-            for char in clean_expression:
-                if not (char.isdigit() or char in '+-*/().'):
+            for char in self.expression:
+                if not (char.isdigit() or char in '+-*/(). '):
                     return f"Erro: Caractere inválido '{char}' na expressão"
             
-            result = eval(clean_expression)
+            result = eval(self.expression)
             return result
         except SyntaxError:
             return "Erro: Sintaxe inválida na expressão"
