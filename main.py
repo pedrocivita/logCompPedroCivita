@@ -19,7 +19,7 @@ class AvaliarConta:
             
             # Avalia a expressão de forma segura
             result = eval(clean_expression)
-            return result
+            return str(result)
         except SyntaxError:
             return "Erro: Sintaxe inválida na expressão"
         except ZeroDivisionError:
@@ -35,7 +35,7 @@ def main():
     expression = sys.argv[1]
     evaluator = AvaliarConta(expression)
     resultado = evaluator.avaliar()
-    if "Erro" in resultado:
+    if resultado.startswith("Erro"):
         print(resultado, file=sys.stderr)
     else:
         print(resultado)
