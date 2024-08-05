@@ -25,6 +25,17 @@ class AvaliarConta:
             if clean_expression[0] in "+-" or clean_expression[-1] in "+-":
                 return "Erro: Sintaxe inválida na expressão"
 
+            # Verifica se há números consecutivos sem operador entre eles
+            i = 0
+            while i < len(clean_expression):
+                if clean_expression[i].isdigit():
+                    num_start = i
+                    while i < len(clean_expression) and clean_expression[i].isdigit():
+                        i += 1
+                    if i < len(clean_expression) and clean_expression[i].isdigit():
+                        return "Erro: Sintaxe inválida na expressão"
+                i += 1
+
             # Avalia a expressão de forma segura
             result = eval(clean_expression)
             return str(result)
