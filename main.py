@@ -12,17 +12,17 @@ class AvaliarConta:
             # Remover espaços desnecessários
             clean_expression = self.expression.replace(" ", "")
 
-            # Verifica se a expressão contém apenas caracteres permitidos (números, operadores e parênteses)
-            valid_chars = "0123456789+-*/()."
+            # Verifica se a expressão contém apenas caracteres permitidos (números e operadores de adição/subtração)
+            valid_chars = "0123456789+-"
             for char in clean_expression:
                 if char not in valid_chars:
                     return f"Erro: Caractere inválido '{char}' na expressão"
 
             # Verifica erros de sintaxe simples
-            if any(op in clean_expression for op in ["++", "--", "**", "//", "*/", "/*", "+-", "-+", "*+", "+*", "/+", "+/", ".+", "+."]):
+            if any(op in clean_expression for op in ["++", "--", "+-", "-+"]):
                 return "Erro: Sintaxe inválida na expressão"
 
-            if clean_expression[0] in "+*/" or clean_expression[-1] in "+-*/":
+            if clean_expression[0] in "+-" or clean_expression[-1] in "+-":
                 return "Erro: Sintaxe inválida na expressão"
 
             # Avalia a expressão de forma segura
