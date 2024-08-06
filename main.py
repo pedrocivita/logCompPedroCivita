@@ -22,7 +22,7 @@ class Calculator:
                     raise ValueError(f"Invalid sequence of operators: {tokens[-1]}{char}")
                 tokens.append(char)
             elif char.isspace():
-                raise ValueError("Invalid character found: space")
+                continue
             else:
                 raise ValueError(f"Invalid character found: {char}")
         
