@@ -13,15 +13,22 @@ class Calculator:
             if char.isdigit():
                 current_number.append(char)
             elif char in '+-':
+                if not tokens and not current_number:
+                    raise ValueError(f"Invalid expression: starts with operator {char}")
                 if current_number:
                     tokens.append(''.join(current_number))
                     current_number = []
+                if tokens and tokens[-1] in '+-':
+                    raise ValueError(f"Invalid sequence of operators: {tokens[-1]}{char}")
                 tokens.append(char)
             else:
                 raise ValueError(f"Invalid character found: {char}")
         
         if current_number:
             tokens.append(''.join(current_number))
+        
+        if not tokens or tokens[-1] in '+-':
+            raise ValueError(f"Invalid expression: ends with operator {tokens[-1]}")
         
         return tokens
 
@@ -46,7 +53,7 @@ class Calculator:
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python main.py '<expression>'")
+        print("Usage: python main.py '<expression>'", file=sys.stderr)
         return
     
     expression = sys.argv[1].replace(' ', '')  # Remove any spaces from the input
@@ -56,9 +63,9 @@ def main():
         result = calculator.evaluate()
         print(result)
     except ValueError as ve:
-        print(f"Error: {ve}")
+        print(f"Error: {ve}", file=sys.stderr)
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Unexpected error: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
