@@ -1,57 +1,31 @@
 import sys
+import re
 
 class Calculator:
     def __init__(self, expression):
         self.expression = expression
-        self.tokens = self.tokenize(expression)
+        self.validate_expression()
 
-    def tokenize(self, expression):
-        tokens = []
-        current_number = []
+    def validate_expression(self):
+        # Check if the expression contains only valid characters (digits, spaces, +, -)
+        if not re.match(r'^[\d\s\+\-]+$', self.expression):
+            raise ValueError("Invalid characters in expression")
         
-        for char in expression:
-            if char.isdigit():
-                current_number.append(char)
-            elif char in '+-':
-                if not tokens and not current_number:
-                    raise ValueError(f"Invalid expression: starts with operator {char}")
-                if current_number:
-                    tokens.append(''.join(current_number))
-                    current_number = []
-                if tokens and tokens[-1] in '+-':
-                    raise ValueError(f"Invalid sequence of operators: {tokens[-1]}{char}")
-                tokens.append(char)
-            elif char.isspace():
-                continue
-            else:
-                raise ValueError(f"Invalid character found: {char}")
-        
-        if current_number:
-            tokens.append(''.join(current_number))
-        
-        if not tokens or tokens[-1] in '+-':
-            raise ValueError(f"Invalid expression: ends with operator {tokens[-1]}")
-        
-        return tokens
+        # Remove spaces for easier validation
+        clean_expression = self.expression.replace(' ', '')
 
+        # Check for invalid sequences like empty expression, operators at the start or end, or consecutive operators
+        if not clean_expression or clean_expression[0] in '+-' or clean_expression[-1] in '+-':
+            raise ValueError("Invalid expression format: cannot start or end with an operator")
+        if re.search(r'[\+\-]{2,}', clean_expression):
+            raise ValueError("Invalid expression format: consecutive operators")
+    
     def evaluate(self):
-        def helper(index):
-            total = 0
-            current_operator = '+'
-            while index < len(self.tokens):
-                token = self.tokens[index]
-                if token.isdigit():
-                    number = int(token)
-                    if current_operator == '+':
-                        total += number
-                    elif current_operator == '-':
-                        total -= number
-                else:
-                    current_operator = token
-                index += 1
-            return total
-        
-        return helper(0)
+        try:
+            result = eval(self.expression)
+            return result
+        except Exception as e:
+            raise ValueError(f"Error evaluating expression: {e}")
 
 def main():
     if len(sys.argv) != 2:
