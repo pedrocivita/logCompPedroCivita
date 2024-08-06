@@ -21,6 +21,8 @@ class Calculator:
                 if tokens and tokens[-1] in '+-':
                     raise ValueError(f"Invalid sequence of operators: {tokens[-1]}{char}")
                 tokens.append(char)
+            elif char.isspace():
+                raise ValueError("Invalid character found: space")
             else:
                 raise ValueError(f"Invalid character found: {char}")
         
@@ -56,7 +58,7 @@ def main():
         print("Usage: python main.py '<expression>'", file=sys.stderr)
         return
     
-    expression = sys.argv[1].replace(' ', '')  # Remove any spaces from the input
+    expression = sys.argv[1]
     
     try:
         calculator = Calculator(expression)
