@@ -1,59 +1,77 @@
-import sys
+class Token:
+    def __init__(self, type_, value):
+        self.type = type_
+        self.value = value
 
-if len(sys.argv) != 2:
-    print("Uso: python main.py 'expressão'", file=sys.stderr)
-    sys.exit(1)
+class Tokenizer:
+    def __init__(self, source):
+        self.source = source
+        self.position = 0
+        self.next = None
 
-expression = sys.argv[1]
+    def selectNext(self):
+        if self.position >= len(self.source):
+            self.next = Token("EOF", None)
+            return
 
-if not expression.strip():
-    print("Erro: Expressão vazia", file=sys.stderr)
-    sys.exit(1)
+        current_char = self.source[self.position]
 
-clean_expression = expression.replace(" ", "")
-
-valid_chars = "0123456789+-"
-for char in clean_expression:
-    if char not in valid_chars:
-        print(f"Erro: Caractere inválido '{char}' na expressão", file=sys.stderr)
-        sys.exit(1)
-
-if "+" not in clean_expression and "-" not in clean_expression:
-    print("Erro: A expressão deve conter pelo menos um operador de adição ou subtração", file=sys.stderr)
-    sys.exit(1)
-
-if any(op in clean_expression for op in ["++", "--", "+-", "-+"]):
-    print("Erro: Sintaxe inválida na expressão", file=sys.stderr)
-    sys.exit(1)
-
-if clean_expression[0] in "+-" or clean_expression[-1] in "+-":
-    print("Erro: Sintaxe inválida na expressão", file=sys.stderr)
-    sys.exit(1)
-
-try:
-    total = 0
-    current_number = ""
-    current_operator = "+"
-
-    for char in clean_expression:
-        if char.isdigit():
-            current_number += char
+        if current_char.isdigit():
+            number = ""
+            while self.position < len(self.source) and self.source[self.position].isdigit():
+                number += self.source[self.position]
+                self.position += 1
+            self.next = Token("NUMBER", int(number))
+        elif current_char in "+-":
+            self.next = Token("OPERATOR", current_char)
+            self.position += 1
+        elif current_char.isspace():
+            self.position += 1
+            self.selectNext()
         else:
-            if current_operator == "+":
-                total += int(current_number)
-            elif current_operator == "-":
-                total -= int(current_number)
+            raise ValueError(f"Caractere inválido: {current_char}")
 
-            current_operator = char
-            current_number = ""
+class Parser:
+    @staticmethod
+    def parseExpression():
+        result = Parser.parseTerm()
 
-    if current_number:
-        if current_operator == "+":
-            total += int(current_number)
-        elif current_operator == "-":
-            total -= int(current_number)
+        while Parser.tokenizer.next.type == "OPERATOR":
+            if Parser.tokenizer.next.value == "+":
+                Parser.tokenizer.selectNext()
+                result += Parser.parseTerm()
+            elif Parser.tokenizer.next.value == "-":
+                Parser.tokenizer.selectNext()
+                result -= Parser.parseTerm()
 
-    print(total)
-except Exception:
-    print("Erro: Avaliação falhou", file=sys.stderr)
-    sys.exit(1)
+        return result
+
+    @staticmethod
+    def parseTerm():
+        if Parser.tokenizer.next.type == "NUMBER":
+            value = Parser.tokenizer.next.value
+            Parser.tokenizer.selectNext()
+            return value
+        else:
+            raise ValueError("Erro de sintaxe")
+
+    @staticmethod
+    def run(code):
+        Parser.tokenizer = Tokenizer(code)
+        Parser.tokenizer.selectNext()
+        result = Parser.parseExpression()
+        if Parser.tokenizer.next.type != "EOF":
+            raise ValueError("Código não totalmente consumido")
+        return result
+
+def main():
+    while True:
+        try:
+            code = input(">> ")
+            result = Parser.run(code)
+            print(result)
+        except Exception as e:
+            print(e)
+
+if __name__ == "__main__":
+    main()
