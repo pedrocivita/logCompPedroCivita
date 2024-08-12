@@ -1,3 +1,5 @@
+import sys
+
 class Token:
     def __init__(self, type: str, value: int):
         self.type = type
@@ -78,7 +80,10 @@ class Parser:
 
 
 def main():
-    code = input("Enter an expression: ")
+    if len(sys.argv) > 1:
+        code = sys.argv[1]
+    else:
+        code = input("Enter an expression: ")
     try:
         result = Parser.run(code)
         print(f"Result: {result}")
