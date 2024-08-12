@@ -32,6 +32,8 @@ class Tokenizer:
             raise ValueError(f"Caractere inválido: {current_char}")
 
 class Parser:
+    tokenizer = None
+
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
