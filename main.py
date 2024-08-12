@@ -83,10 +83,11 @@ def main():
     if len(sys.argv) > 1:
         code = sys.argv[1]
     else:
-        code = input("Enter an expression: ")
+        code = input()
+
     try:
         result = Parser.run(code)
-        print(f"Result: {result}")
+        print(result)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
 
