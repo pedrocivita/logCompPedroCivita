@@ -10,6 +10,9 @@ class Tokenizer:
         self.next = None
 
     def selectNext(self):
+        while self.position < len(self.source) and self.source[self.position].isspace():
+            self.position += 1
+
         if self.position >= len(self.source):
             self.next = Token("EOF", None)
             return
@@ -25,9 +28,6 @@ class Tokenizer:
         elif current_char in "+-":
             self.next = Token("OPERATOR", current_char)
             self.position += 1
-        elif current_char.isspace():
-            self.position += 1
-            self.selectNext()
         else:
             raise ValueError(f"Caractere inválido: {current_char}")
 
