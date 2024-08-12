@@ -10,7 +10,7 @@ class Tokenizer:
         self.next = None
 
     def selectNext(self):
-        # Ignora todos os espaços em branco
+        # Ignorar espaços em branco
         while self.position < len(self.source) and self.source[self.position].isspace():
             self.position += 1
 
