@@ -39,34 +39,36 @@ class Tokenizer:
 class Parser:
     @staticmethod
     def parseExpression():
-        result = 0
         if Parser.tokenizer.next.type == 'INT':
             result = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
 
             while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
-                if Parser.tokenizer.next.type == 'PLUS':
-                    Parser.tokenizer.selectNext()
-                    if Parser.tokenizer.next.type == 'INT':
-                        result += Parser.tokenizer.next.value
-                        Parser.tokenizer.selectNext()
-                    else:
-                        raise ValueError("Syntax Error: Expected INT after PLUS")
-                elif Parser.tokenizer.next.type == 'MINUS':
-                    Parser.tokenizer.selectNext()
-                    if Parser.tokenizer.next.type == 'INT':
-                        result -= Parser.tokenizer.next.value
-                        Parser.tokenizer.selectNext()
-                    else:
-                        raise ValueError("Syntax Error: Expected INT after MINUS")
+                op_type = Parser.tokenizer.next.type
+                Parser.tokenizer.selectNext()
+
+                if Parser.tokenizer.next.type != 'INT':
+                    raise ValueError(f"Syntax Error: Expected INT after {op_type}")
+                
+                if op_type == 'PLUS':
+                    result += Parser.tokenizer.next.value
+                elif op_type == 'MINUS':
+                    result -= Parser.tokenizer.next.value
+                
+                Parser.tokenizer.selectNext()
+
+            return result
         else:
             raise ValueError("Syntax Error: Expected INT at the start of expression")
-        return result
 
     @staticmethod
     def run(code: str):
         Parser.tokenizer = Tokenizer(code)
         Parser.tokenizer.selectNext()
+
+        if Parser.tokenizer.next.type == 'EOF':
+            raise ValueError("Syntax Error: Empty input")
+
         result = Parser.parseExpression()
 
         if Parser.tokenizer.next.type != 'EOF':
@@ -76,14 +78,12 @@ class Parser:
 
 
 def main():
-    tests = ["1+2", "3-2", "1+2-3", "11+22-33", "789 +345 - 123"]
-
-    for test in tests:
-        try:
-            result = Parser.run(test)
-            print(f"Result of '{test}': {result}")
-        except ValueError as e:
-            print(f"Error in '{test}': {e}")
+    code = input("Enter an expression: ")
+    try:
+        result = Parser.run(code)
+        print(f"Result: {result}")
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
