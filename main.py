@@ -10,9 +10,11 @@ class Tokenizer:
         self.next = None
 
     def selectNext(self):
+        # Ignora todos os espaços em branco
         while self.position < len(self.source) and self.source[self.position].isspace():
             self.position += 1
 
+        # Se atingiu o fim da string, retorna EOF
         if self.position >= len(self.source):
             self.next = Token("EOF", None)
             return
