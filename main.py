@@ -34,6 +34,12 @@ class Tokenizer:
         elif current_char == '-':
             self.next = Token('MINUS', None)
             self.position += 1
+        elif current_char == '*':
+            self.next = Token('MULT', None)
+            self.position += 1
+        elif current_char == '/':
+            self.next = Token('DIV', None)
+            self.position += 1
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
@@ -41,27 +47,46 @@ class Tokenizer:
 class Parser:
     @staticmethod
     def parseExpression():
+        result = Parser.parseTerm()
+
+        while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
+            op_type = Parser.tokenizer.next.type
+            Parser.tokenizer.selectNext()
+            result2 = Parser.parseTerm()
+
+            if op_type == 'PLUS':
+                result += result2
+            elif op_type == 'MINUS':
+                result -= result2
+
+        return result
+
+    @staticmethod
+    def parseTerm():
+        result = Parser.parseFactor()
+
+        while Parser.tokenizer.next.type in ['MULT', 'DIV']:
+            op_type = Parser.tokenizer.next.type
+            Parser.tokenizer.selectNext()
+            result2 = Parser.parseFactor()
+
+            if op_type == 'MULT':
+                result *= result2
+            elif op_type == 'DIV':
+                if result2 == 0:
+                    raise ValueError("Division by zero")
+                result /= result2
+
+        return result
+
+    @staticmethod
+    def parseFactor():
         if Parser.tokenizer.next.type == 'INT':
             result = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-
-            while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
-                op_type = Parser.tokenizer.next.type
-                Parser.tokenizer.selectNext()
-
-                if Parser.tokenizer.next.type != 'INT':
-                    raise ValueError(f"Syntax Error: Expected INT after {op_type}")
-                
-                if op_type == 'PLUS':
-                    result += Parser.tokenizer.next.value
-                elif op_type == 'MINUS':
-                    result -= Parser.tokenizer.next.value
-                
-                Parser.tokenizer.selectNext()
-
             return result
         else:
-            raise ValueError("Syntax Error: Expected INT at the start of expression")
+            raise ValueError("Syntax Error: Expected INT")
 
     @staticmethod
     def run(code: str):
