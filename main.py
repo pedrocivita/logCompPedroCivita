@@ -90,22 +90,32 @@ class Parser:
 
     @staticmethod
     def run(code: str):
-        Parser.tokenizer = Tokenizer(code)
-        Parser.tokenizer.selectNext()
+        try:
+            Parser.tokenizer = Tokenizer(code)
+            Parser.tokenizer.selectNext()
 
-        if Parser.tokenizer.next.type == 'EOF':
-            raise ValueError("Syntax Error: Empty input")
+            if Parser.tokenizer.next.type == 'EOF':
+                raise ValueError("Syntax Error: Empty input")
 
-        result = Parser.parseExpression()
+            result = Parser.parseExpression()
 
-        if Parser.tokenizer.next.type != 'EOF':
-            raise ValueError("Syntax Error: Expected EOF at the end of expression")
+            if Parser.tokenizer.next.type != 'EOF':
+                raise ValueError("Syntax Error: Expected EOF at the end of expression")
 
-        return result
+            print(result)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def main():
     if len(sys.argv) > 1:
         code = sys.argv[1]
     else:
-        code = input
+        code = input()
+
+    Parser.run(code)
+
+
+if __name__ == "__main__":
+    main()
