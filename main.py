@@ -75,7 +75,7 @@ class Parser:
             elif op_type == 'DIV':
                 if result2 == 0:
                     raise ValueError("Division by zero")
-                result /= result2
+                result //= result2  # Usando divisão inteira para garantir um resultado inteiro
 
         return result
 
@@ -108,14 +108,4 @@ def main():
     if len(sys.argv) > 1:
         code = sys.argv[1]
     else:
-        code = input()
-
-    try:
-        result = Parser.run(code)
-        print(result)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-
-
-if __name__ == "__main__":
-    main()
+        code = input
