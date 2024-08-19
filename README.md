@@ -7,4 +7,5 @@
 ---
 ## Diagrama Sintático
 
-![diagramaSintatico](https://github.com/user-attachments/assets/cc453cdb-6347-4854-89b3-7bcabe31d10c)
+![Diagrama sem nome drawio](https://github.com/user-attachments/assets/74bb62c4-c47d-49cd-80b9-cf5ab7bb034f)
+
