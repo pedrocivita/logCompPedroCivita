@@ -7,5 +7,4 @@
 ---
 ## Diagrama Sintático
 
-![Diagrama sem nome drawio](https://github.com/user-attachments/assets/74bb62c4-c47d-49cd-80b9-cf5ab7bb034f)
-
+![logCompR3 drawio](https://github.com/user-attachments/assets/fd55707e-bcd1-4c8e-bdc5-73607a6097d3)
