@@ -40,6 +40,12 @@ class Tokenizer:
         elif current_char == '/':
             self.next = Token('DIV', None)
             self.position += 1
+        elif current_char == '(':
+            self.next = Token('LPAREN', None)
+            self.position += 1
+        elif current_char == ')':
+            self.next = Token('RPAREN', None)
+            self.position += 1
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
@@ -75,28 +81,37 @@ class Parser:
             elif op_type == 'DIV':
                 if result2 == 0:
                     raise ValueError("Division by zero")
-                result //= result2  # Usando divisão inteira para garantir um resultado inteiro
+                result //= result2
 
         return result
 
     @staticmethod
     def parseFactor():
-        if Parser.tokenizer.next.type == 'INT':
+        if Parser.tokenizer.next.type == 'PLUS':
+            Parser.tokenizer.selectNext()
+            return Parser.parseFactor()
+        elif Parser.tokenizer.next.type == 'MINUS':
+            Parser.tokenizer.selectNext()
+            return -Parser.parseFactor()
+        elif Parser.tokenizer.next.type == 'LPAREN':
+            Parser.tokenizer.selectNext()
+            result = Parser.parseExpression()
+            if Parser.tokenizer.next.type != 'RPAREN':
+                raise ValueError("Syntax Error: Expected ')'")
+            Parser.tokenizer.selectNext()
+            return result
+        elif Parser.tokenizer.next.type == 'INT':
             result = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             return result
         else:
-            raise ValueError("Syntax Error: Expected INT")
+            raise ValueError("Syntax Error: Expected INT or '('")
 
     @staticmethod
     def run(code: str):
         try:
             Parser.tokenizer = Tokenizer(code)
             Parser.tokenizer.selectNext()
-
-            if Parser.tokenizer.next.type == 'EOF':
-                raise ValueError("Syntax Error: Empty input")
-
             result = Parser.parseExpression()
 
             if Parser.tokenizer.next.type != 'EOF':
