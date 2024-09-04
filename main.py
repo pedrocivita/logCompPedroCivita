@@ -138,7 +138,7 @@ class Parser:
     def parseFactor():
         if Parser.tokenizer.next.type == 'PLUS':
             Parser.tokenizer.selectNext()
-            return UnOp('PLUS', Parser.parseFactor())
+            return Parser.parseFactor()  # Ignora o '+' unário
         elif Parser.tokenizer.next.type == 'MINUS':
             Parser.tokenizer.selectNext()
             return UnOp('MINUS', Parser.parseFactor())
