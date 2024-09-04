@@ -1,15 +1,17 @@
 import sys
 from abc import ABC, abstractmethod
-import re
 
 # Classe PrePro para filtrar comentários
 class PrePro:
     @staticmethod
     def filter(code: str) -> str:
-        # Remover comentários de linha (--) e blocos de comentários (/* ... */)
-        code = re.sub(r'--.*', '', code)
-        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        return code.strip()
+        # Filtrar comentários do estilo /* */ e -- 
+        code = ''.join([line.split('--')[0] for line in code.splitlines()])
+        while '/*' in code and '*/' in code:
+            start = code.index('/*')
+            end = code.index('*/') + 2
+            code = code[:start] + code[end:]
+        return code
 
 # Classe Node (abstrata) e suas subclasses
 class Node(ABC):
@@ -27,13 +29,13 @@ class BinOp(Node):
         self.children = [left, right]
 
     def Evaluate(self):
-        if self.value == 'PLUS':
+        if self.value == '+':
             return self.children[0].Evaluate() + self.children[1].Evaluate()
-        elif self.value == 'MINUS':
+        elif self.value == '-':
             return self.children[0].Evaluate() - self.children[1].Evaluate()
-        elif self.value == 'MULT':
+        elif self.value == '*':
             return self.children[0].Evaluate() * self.children[1].Evaluate()
-        elif self.value == 'DIV':
+        elif self.value == '/':
             return self.children[0].Evaluate() // self.children[1].Evaluate()
 
 class UnOp(Node):
@@ -42,9 +44,9 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self):
-        if self.value == 'PLUS':
+        if self.value == '+':
             return +self.children[0].Evaluate()
-        elif self.value == 'MINUS':
+        elif self.value == '-':
             return -self.children[0].Evaluate()
 
 class IntVal(Node):
@@ -138,7 +140,7 @@ class Parser:
     def parseFactor():
         if Parser.tokenizer.next.type == 'PLUS':
             Parser.tokenizer.selectNext()
-            return Parser.parseFactor()  # Ignora o '+' unário
+            return UnOp('PLUS', Parser.parseFactor())
         elif Parser.tokenizer.next.type == 'MINUS':
             Parser.tokenizer.selectNext()
             return UnOp('MINUS', Parser.parseFactor())
@@ -154,7 +156,7 @@ class Parser:
             Parser.tokenizer.selectNext()
             return node
         else:
-            raise ValueError("Syntax Error: Invalid token")
+            raise ValueError(f"Syntax Error: Unexpected token {Parser.tokenizer.next.type}")
 
     @staticmethod
     def run(code: str):
@@ -172,12 +174,12 @@ def main():
         print("Please provide a .lua file.")
         return
 
+    filtered_code = PrePro.filter(code)
     try:
-        filtered_code = PrePro.filter(code)
         tree = Parser.run(filtered_code)
         result = tree.Evaluate()
         print(result)
-    except Exception as e:
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
