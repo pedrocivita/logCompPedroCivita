@@ -1,6 +1,6 @@
 import sys
-from abc import ABC, abstractmethod
 import re
+from abc import ABC, abstractmethod
 
 # Classe PrePro para filtrar comentários
 class PrePro:
@@ -42,10 +42,10 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self):
-        if self.value == 'MINUS':
-            return -self.children[0].Evaluate()
-        elif self.value == 'PLUS':
+        if self.value == 'PLUS':
             return +self.children[0].Evaluate()
+        elif self.value == 'MINUS':
+            return -self.children[0].Evaluate()
 
 class IntVal(Node):
     def __init__(self, value):
@@ -115,10 +115,11 @@ class Parser:
         left = Parser.parseTerm()
 
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
-            op = Parser.tokenizer.next.type
+            op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             right = Parser.parseTerm()
-            left = BinOp(op, left, right)
+
+            left = BinOp(op_type, left, right)
 
         return left
 
@@ -127,41 +128,50 @@ class Parser:
         left = Parser.parseFactor()
 
         while Parser.tokenizer.next.type in ['MULT', 'DIV']:
-            op = Parser.tokenizer.next.type
+            op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             right = Parser.parseFactor()
-            left = BinOp(op, left, right)
+
+            left = BinOp(op_type, left, right)
 
         return left
 
     @staticmethod
     def parseFactor():
-        # Tratar múltiplos operadores unários
-        if Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
-            op_type = Parser.tokenizer.next.type
+        if Parser.tokenizer.next.type == 'PLUS':
             Parser.tokenizer.selectNext()
-            return UnOp(op_type, Parser.parseFactor())  # Recursivamente lida com operadores unários
-
-        node = None
-        if Parser.tokenizer.next.type == 'INT':
-            node = IntVal(Parser.tokenizer.next.value)
+            return UnOp('PLUS', Parser.parseFactor())
+        elif Parser.tokenizer.next.type == 'MINUS':
             Parser.tokenizer.selectNext()
+            return UnOp('MINUS', Parser.parseFactor())
         elif Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            node = Parser.parseExpression()
+            result = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')'")
             Parser.tokenizer.selectNext()
+            return result
+        elif Parser.tokenizer.next.type == 'INT':
+            result = IntVal(Parser.tokenizer.next.value)
+            Parser.tokenizer.selectNext()
+            return result
         else:
-            raise ValueError("Syntax Error: Invalid token")
-
-        return node
+            raise ValueError("Syntax Error: Expected INT or '('")
 
     @staticmethod
     def run(code: str):
-        Parser.tokenizer = Tokenizer(code)
-        Parser.tokenizer.selectNext()
-        return Parser.parseExpression()
+        try:
+            Parser.tokenizer = Tokenizer(code)
+            Parser.tokenizer.selectNext()
+            result = Parser.parseExpression()
+
+            if Parser.tokenizer.next.type != 'EOF':
+                raise ValueError("Syntax Error: Expected EOF at the end of expression")
+
+            return result  # Retorna a árvore de sintaxe abstrata
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 # Programa principal
 def main():
@@ -173,14 +183,12 @@ def main():
         print("Please provide a .lua file.")
         return
 
-    try:
-        filtered_code = PrePro.filter(code)
-        tree = Parser.run(filtered_code)
-        result = tree.Evaluate()
-        print(result)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    filtered_code = PrePro.filter(code)
+    tree = Parser.run(filtered_code)
+
+    # Avaliar a árvore e exibir o resultado
+    result = tree.Evaluate()
+    print(result)
 
 if __name__ == "__main__":
     main()
