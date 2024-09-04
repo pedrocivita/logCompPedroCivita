@@ -1,5 +1,6 @@
 import sys
 from abc import ABC, abstractmethod
+import re
 
 class Token:
     def __init__(self, type: str, value: int):
@@ -130,11 +131,10 @@ class Parser:
 class PrePro:
     @staticmethod
     def filter(code: str) -> str:
-        filtered_code = ""
-        for line in code.splitlines():
-            line = line.split('#', 1)[0]  # Remove o comentário após '#'
-            filtered_code += line + '\n'
-        return filtered_code
+        # Remove comentários do tipo /* */ e também // (caso exista)
+        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        code = re.sub(r'//.*', '', code)
+        return code
 
 
 # Classe abstrata Node
