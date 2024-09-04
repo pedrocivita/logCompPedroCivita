@@ -14,47 +14,58 @@ class Tokenizer:
         self.next = None
 
     def selectNext(self):
+        # Ignora espaços em branco
         while self.position < len(self.source) and self.source[self.position] == ' ':
             self.position += 1
 
+        # Verifica se alcançou o fim da string
         if self.position >= len(self.source):
             self.next = Token('EOF', None)
             return
 
         current_char = self.source[self.position]
 
+        # Detecta números inteiros
         if current_char.isdigit():
             value = 0
             while self.position < len(self.source) and self.source[self.position].isdigit():
                 value = value * 10 + int(self.source[self.position])
                 self.position += 1
             self.next = Token('INT', value)
+
+        # Operadores básicos
         elif current_char == '+':
             self.next = Token('PLUS', None)
             self.position += 1
+
         elif current_char == '-':
             self.next = Token('MINUS', None)
             self.position += 1
+
         elif current_char == '*':
-            # Verifica se há dois asteriscos '**' que são inválidos
+            # Verifica se há dois asteriscos '**' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
-                self.position += 2  # Avança para o próximo caractere depois de **
-                raise ValueError(f"Invalid operator: '**'")
+                raise ValueError("Invalid operator: '**'")
             self.next = Token('MULT', None)
             self.position += 1
+
         elif current_char == '/':
-            # Verifica se há dois slashes '//' que são inválidos
+            # Verifica se há dois slashes '//' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
-                self.position += 2  # Avança para o próximo caractere depois de //
-                raise ValueError(f"Invalid operator: '//'")
+                raise ValueError("Invalid operator: '//'")
             self.next = Token('DIV', None)
             self.position += 1
+
+        # Parênteses
         elif current_char == '(':
             self.next = Token('LPAREN', None)
             self.position += 1
+
         elif current_char == ')':
             self.next = Token('RPAREN', None)
             self.position += 1
+
+        # Caracteres inválidos
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
