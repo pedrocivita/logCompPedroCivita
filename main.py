@@ -1,70 +1,12 @@
 import sys
-import re
 from abc import ABC, abstractmethod
 
-# Classe PrePro para filtrar comentários
-class PrePro:
-    @staticmethod
-    def filter(code: str) -> str:
-        # Remover comentários de linha (--) e blocos de comentários (/* ... */)
-        code = re.sub(r'--.*', '', code)
-        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        return code.strip()
-
-# Classe Node (abstrata) e suas subclasses
-class Node(ABC):
-    def __init__(self, value=None):
-        self.value = value
-        self.children = []
-
-    @abstractmethod
-    def Evaluate(self):
-        pass
-
-class BinOp(Node):
-    def __init__(self, value, left, right):
-        super().__init__(value)
-        self.children = [left, right]
-
-    def Evaluate(self):
-        if self.value == 'PLUS':
-            return self.children[0].Evaluate() + self.children[1].Evaluate()
-        elif self.value == 'MINUS':
-            return self.children[0].Evaluate() - self.children[1].Evaluate()
-        elif self.value == 'MULT':
-            return self.children[0].Evaluate() * self.children[1].Evaluate()
-        elif self.value == 'DIV':
-            return self.children[0].Evaluate() // self.children[1].Evaluate()
-
-class UnOp(Node):
-    def __init__(self, value, child):
-        super().__init__(value)
-        self.children = [child]
-
-    def Evaluate(self):
-        if self.value == 'PLUS':
-            return +self.children[0].Evaluate()
-        elif self.value == 'MINUS':
-            return -self.children[0].Evaluate()
-
-class IntVal(Node):
-    def __init__(self, value):
-        super().__init__(value)
-
-    def Evaluate(self):
-        return self.value
-
-class NoOp(Node):
-    def Evaluate(self):
-        return 0
-
-# Classe Token
 class Token:
     def __init__(self, type: str, value: int):
         self.type = type
         self.value = value
 
-# Classe Tokenizer
+
 class Tokenizer:
     def __init__(self, source: str):
         self.source = source
@@ -108,85 +50,177 @@ class Tokenizer:
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
-# Classe Parser
+
 class Parser:
     @staticmethod
     def parseExpression():
-        left = Parser.parseTerm()
+        result = Parser.parseTerm()
 
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
-            right = Parser.parseTerm()
+            result2 = Parser.parseTerm()
 
-            left = BinOp(op_type, left, right)
+            if op_type == 'PLUS':
+                result = BinOp('+', result, result2)
+            elif op_type == 'MINUS':
+                result = BinOp('-', result, result2)
 
-        return left
+        return result
 
     @staticmethod
     def parseTerm():
-        left = Parser.parseFactor()
+        result = Parser.parseFactor()
 
         while Parser.tokenizer.next.type in ['MULT', 'DIV']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
-            right = Parser.parseFactor()
-            left = BinOp(op_type, left, right)
+            result2 = Parser.parseFactor()
 
-        return left
+            if op_type == 'MULT':
+                result = BinOp('*', result, result2)
+            elif op_type == 'DIV':
+                result = BinOp('/', result, result2)
+
+        return result
 
     @staticmethod
     def parseFactor():
-        # Tratar múltiplos operadores unários consecutivos
-        op_count = 0
-        while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
-            if Parser.tokenizer.next.type == 'MINUS':
-                op_count += 1
+        if Parser.tokenizer.next.type == 'PLUS':
             Parser.tokenizer.selectNext()
-
-        node = None
-        if Parser.tokenizer.next.type == 'INT':
-            node = IntVal(Parser.tokenizer.next.value)
+            return UnOp('+', Parser.parseFactor())
+        elif Parser.tokenizer.next.type == 'MINUS':
             Parser.tokenizer.selectNext()
+            return UnOp('-', Parser.parseFactor())
         elif Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            node = Parser.parseExpression()
+            result = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')'")
             Parser.tokenizer.selectNext()
+            return result
+        elif Parser.tokenizer.next.type == 'INT':
+            result = IntVal(Parser.tokenizer.next.value)
+            Parser.tokenizer.selectNext()
+            return result
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
 
-        # Aplicar o operador unário acumulado
-        if op_count % 2 == 1:
-            node = UnOp('MINUS', node)
-
-        return node
-
     @staticmethod
     def run(code: str):
-        Parser.tokenizer = Tokenizer(code)
-        Parser.tokenizer.selectNext()
-        return Parser.parseExpression()
+        try:
+            # Remove comentários usando a classe PrePro
+            code = PrePro.filter(code)
+            
+            Parser.tokenizer = Tokenizer(code)
+            Parser.tokenizer.selectNext()
+            ast = Parser.parseExpression()
 
-# Programa principal
+            if Parser.tokenizer.next.type != 'EOF':
+                raise ValueError("Syntax Error: Expected EOF at the end of expression")
+
+            # Executa o método Evaluate na raiz da árvore (AST)
+            result = ast.Evaluate()
+            print(result)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+
+class PrePro:
+    @staticmethod
+    def filter(code: str) -> str:
+        filtered_code = ""
+        for line in code.splitlines():
+            line = line.split('#', 1)[0]  # Remove o comentário após '#'
+            filtered_code += line + '\n'
+        return filtered_code
+
+
+# Classe abstrata Node
+class Node(ABC):
+    def __init__(self, value=None):
+        self.value = value
+        self.children = []
+
+    @abstractmethod
+    def Evaluate(self):
+        pass
+
+
+# Classe BinOp - Operação binária (2 filhos)
+class BinOp(Node):
+    def __init__(self, value, left, right):
+        super().__init__(value)
+        self.children = [left, right]
+
+    def Evaluate(self):
+        # Executa recursivamente o método Evaluate nos filhos
+        left_val = self.children[0].Evaluate()
+        right_val = self.children[1].Evaluate()
+        if self.value == '+':
+            return left_val + right_val
+        elif self.value == '-':
+            return left_val - right_val
+        elif self.value == '*':
+            return left_val * right_val
+        elif self.value == '/':
+            if right_val == 0:
+                raise ValueError("Division by zero")
+            return left_val // right_val
+        else:
+            raise ValueError(f"Invalid operation: {self.value}")
+
+
+# Classe UnOp - Operação unária (1 filho)
+class UnOp(Node):
+    def __init__(self, value, child):
+        super().__init__(value)
+        self.children = [child]
+
+    def Evaluate(self):
+        # Executa recursivamente o método Evaluate no filho
+        child_val = self.children[0].Evaluate()
+        if self.value == '+':
+            return child_val
+        elif self.value == '-':
+            return -child_val
+        else:
+            raise ValueError(f"Invalid unary operation: {self.value}")
+
+
+# Classe IntVal - Valor inteiro (sem filhos)
+class IntVal(Node):
+    def __init__(self, value):
+        super().__init__(value)
+
+    def Evaluate(self):
+        # Retorna o próprio valor
+        return self.value
+
+
+# Classe NoOp - Operação nula (sem filhos)
+class NoOp(Node):
+    def Evaluate(self):
+        return None
+
+
 def main():
     if len(sys.argv) > 1:
         file_name = sys.argv[1]
-        with open(file_name, 'r') as file:
-            code = file.read()
+        try:
+            with open(file_name, 'r') as file:
+                code = file.read()
+        except FileNotFoundError:
+            print(f"Error: File '{file_name}' not found.", file=sys.stderr)
+            sys.exit(1)
     else:
-        print("Please provide a .lua file.")
-        return
-
-    try:
-        filtered_code = PrePro.filter(code)
-        tree = Parser.run(filtered_code)
-        result = tree.Evaluate()
-        print(result)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print("Error: No input file provided.", file=sys.stderr)
         sys.exit(1)
+
+    # Executa o compilador com o código do arquivo
+    Parser.run(code)
+
 
 if __name__ == "__main__":
     main()
