@@ -110,8 +110,6 @@ class Tokenizer:
 
 # Classe Parser
 class Parser:
-    last_token_type = None
-
     @staticmethod
     def parseExpression():
         left = Parser.parseTerm()
@@ -148,19 +146,14 @@ class Parser:
 
         node = None
         if Parser.tokenizer.next.type == 'INT':
-            if Parser.last_token_type == 'INT':
-                raise ValueError("Syntax Error: Unexpected consecutive numbers")
             node = IntVal(Parser.tokenizer.next.value)
-            Parser.last_token_type = 'INT'
             Parser.tokenizer.selectNext()
         elif Parser.tokenizer.next.type == 'LPAREN':
-            Parser.last_token_type = 'LPAREN'
             Parser.tokenizer.selectNext()
             node = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')'")
             Parser.tokenizer.selectNext()
-            Parser.last_token_type = 'RPAREN'
         else:
             raise ValueError("Syntax Error: Invalid token")
 
