@@ -136,17 +136,16 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        # Tratar múltiplos operadores unários
         op_count = 0
         op_type = None
 
+        # Lidar com múltiplos operadores unários
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             op_type = Parser.tokenizer.next.type
             if op_type == 'MINUS':
                 op_count += 1
             Parser.tokenizer.selectNext()
 
-        # Determinar o sinal do número
         node = None
         if Parser.tokenizer.next.type == 'INT':
             node = IntVal(Parser.tokenizer.next.value)
@@ -160,8 +159,8 @@ class Parser:
         else:
             raise ValueError("Syntax Error: Invalid token")
 
-        # Se houve operadores unários, determinar o sinal
-        if op_count % 2 == 1:  # Se número de sinais '-' for ímpar
+        # Aplicar o sinal unário, se necessário
+        if op_count % 2 == 1:
             node = UnOp('MINUS', node)
 
         return node
