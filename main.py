@@ -6,62 +6,70 @@ class Token:
     def __init__(self, type: str, value: int):
         self.type = type
         self.value = value
+
 class Tokenizer:
-    def __init__(self, source):
+    def __init__(self, source: str):
         self.source = source
         self.position = 0
         self.next = None
 
     def selectNext(self):
         # Ignora espaços em branco
-        while self.position < len(self.source) and self.source[self.position].isspace():
+        while self.position < len(self.source) and self.source[self.position] == ' ':
             self.position += 1
 
-        # Fim do código fonte
+        # Verifica se alcançou o fim da string
         if self.position >= len(self.source):
-            self.next = Token("EOF", None)
+            self.next = Token('EOF', None)
             return
 
         current_char = self.source[self.position]
 
         # Detecta números inteiros
         if current_char.isdigit():
-            num_value = 0
+            value = 0
             while self.position < len(self.source) and self.source[self.position].isdigit():
-                num_value = num_value * 10 + int(self.source[self.position])
+                value = value * 10 + int(self.source[self.position])
                 self.position += 1
-            self.next = Token("INT", num_value)
-            return
+            self.next = Token('INT', value)
 
-        # Verifica operadores e operadores inválidos
-        if current_char in '+-*/':
+        # Operadores básicos
+        elif current_char == '+':
+            self.next = Token('PLUS', None)
+            self.position += 1
+
+        elif current_char == '-':
+            self.next = Token('MINUS', None)
+            self.position += 1
+
+        elif current_char == '*':
             # Verifica se há dois asteriscos '**' (operador inválido)
-            if current_char == '*' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
-                self.position += 2
-                raise Exception("Invalid operator: '**'")
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
+                self.position += 2  # Avança sobre o operador inválido
+                raise ValueError("Invalid operator: '**'")
+            self.next = Token('MULT', None)
+            self.position += 1
+
+        elif current_char == '/':
             # Verifica se há dois slashes '//' (operador inválido)
-            if current_char == '/' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
-                self.position += 2
-                raise Exception("Invalid operator: '//'")
-            self.next = Token("OPERATOR", current_char)
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
+                self.position += 2  # Avança sobre o operador inválido
+                raise ValueError("Invalid operator: '//'")
+            self.next = Token('DIV', None)
             self.position += 1
-            return
 
-        # Detecta parênteses
-        if current_char in '()':
-            self.next = Token("PARENTHESIS", current_char)
+        # Parênteses
+        elif current_char == '(':
+            self.next = Token('LPAREN', None)
             self.position += 1
-            return
 
-        # Ignora caracteres que não são parte de expressões aritméticas
-        if current_char.isalpha() or current_char == '=':
-            while self.position < len(self.source) and (self.source[self.position].isalpha() or self.source[self.position].isdigit() or self.source[self.position] == '='):
-                self.position += 1
-            self.selectNext()  # Tenta novamente após ignorar a palavra
-            return
+        elif current_char == ')':
+            self.next = Token('RPAREN', None)
+            self.position += 1
 
-        # Levanta um erro se um caractere inesperado for encontrado
-        raise Exception(f"Unexpected character: {current_char}")
+        # Caracteres inválidos
+        else:
+            raise ValueError(f"Unexpected character: {current_char}")
 
 class Parser:
     @staticmethod
