@@ -1,11 +1,15 @@
 import sys
 from abc import ABC, abstractmethod
+import re
 
 # Classe PrePro para filtrar comentários
 class PrePro:
     @staticmethod
     def filter(code: str) -> str:
-        return '\n'.join([line.split('--')[0] for line in code.splitlines()])
+        # Remover comentários de linha (--) e blocos de comentários (/* ... */)
+        code = re.sub(r'--.*', '', code)
+        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        return code.strip()
 
 # Classe Node (abstrata) e suas subclasses
 class Node(ABC):
@@ -23,13 +27,13 @@ class BinOp(Node):
         self.children = [left, right]
 
     def Evaluate(self):
-        if self.value == '+':
+        if self.value == 'PLUS':
             return self.children[0].Evaluate() + self.children[1].Evaluate()
-        elif self.value == '-':
+        elif self.value == 'MINUS':
             return self.children[0].Evaluate() - self.children[1].Evaluate()
-        elif self.value == '*':
+        elif self.value == 'MULT':
             return self.children[0].Evaluate() * self.children[1].Evaluate()
-        elif self.value == '/':
+        elif self.value == 'DIV':
             return self.children[0].Evaluate() // self.children[1].Evaluate()
 
 class UnOp(Node):
@@ -38,9 +42,9 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self):
-        if self.value == '+':
+        if self.value == 'PLUS':
             return +self.children[0].Evaluate()
-        elif self.value == '-':
+        elif self.value == 'MINUS':
             return -self.children[0].Evaluate()
 
 class IntVal(Node):
@@ -150,7 +154,7 @@ class Parser:
             Parser.tokenizer.selectNext()
             return node
         else:
-            return NoOp()
+            raise ValueError("Syntax Error: Invalid token")
 
     @staticmethod
     def run(code: str):
@@ -168,10 +172,14 @@ def main():
         print("Please provide a .lua file.")
         return
 
-    filtered_code = PrePro.filter(code)
-    tree = Parser.run(filtered_code)
-    result = tree.Evaluate()
-    print(result)
+    try:
+        filtered_code = PrePro.filter(code)
+        tree = Parser.run(filtered_code)
+        result = tree.Evaluate()
+        print(result)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
