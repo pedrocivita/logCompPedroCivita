@@ -136,7 +136,7 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        # Tratar múltiplos operadores unários acumulados
+        # Tratar múltiplos operadores unários
         if Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
