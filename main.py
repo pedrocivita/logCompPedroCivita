@@ -146,15 +146,12 @@ class Parser:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
-
 class PrePro:
     @staticmethod
     def filter(code: str) -> str:
-        # Remove comentários do tipo /* */ e também // (caso exista)
+        # Remove comentários do tipo /* */, mas não interfere em // que não são comentários
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        code = re.sub(r'//.*', '', code)
         return code
-
 
 # Classe abstrata Node
 class Node(ABC):
