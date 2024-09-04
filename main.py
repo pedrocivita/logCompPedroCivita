@@ -118,6 +118,7 @@ class Parser:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             right = Parser.parseTerm()
+
             left = BinOp(op_type, left, right)
 
         return left
@@ -136,8 +137,8 @@ class Parser:
 
     @staticmethod
     def parseFactor():
+        # Tratar múltiplos operadores unários consecutivos
         op_count = 0
-        # Conta os operadores unários consecutivos
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             if Parser.tokenizer.next.type == 'MINUS':
                 op_count += 1
@@ -156,7 +157,7 @@ class Parser:
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
 
-        # Aplicar o operador unário
+        # Aplicar o operador unário acumulado
         if op_count % 2 == 1:
             node = UnOp('MINUS', node)
 
