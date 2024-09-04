@@ -137,6 +137,7 @@ class Parser:
     @staticmethod
     def parseFactor():
         op_count = 0
+        previous_token = None  # Para verificar erros de sintaxe (números consecutivos)
 
         # Lidar com múltiplos operadores unários
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
@@ -144,9 +145,14 @@ class Parser:
                 op_count += 1
             Parser.tokenizer.selectNext()
 
+        # Verificar números consecutivos (caso do teste 5)
+        if previous_token == 'INT' and Parser.tokenizer.next.type == 'INT':
+            raise ValueError("Syntax Error: Unexpected consecutive numbers")
+
         node = None
         if Parser.tokenizer.next.type == 'INT':
             node = IntVal(Parser.tokenizer.next.value)
+            previous_token = 'INT'
             Parser.tokenizer.selectNext()
         elif Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
