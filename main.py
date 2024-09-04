@@ -138,40 +138,37 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        if Parser.tokenizer.next.type == 'PLUS':
+        # Tratar múltiplos operadores unários
+        op_count = 0
+        while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
+            if Parser.tokenizer.next.type == 'MINUS':
+                op_count += 1
             Parser.tokenizer.selectNext()
-            return UnOp('PLUS', Parser.parseFactor())
-        elif Parser.tokenizer.next.type == 'MINUS':
+
+        node = None
+        if Parser.tokenizer.next.type == 'INT':
+            node = IntVal(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
-            return UnOp('MINUS', Parser.parseFactor())
         elif Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            result = Parser.parseExpression()
+            node = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')'")
             Parser.tokenizer.selectNext()
-            return result
-        elif Parser.tokenizer.next.type == 'INT':
-            result = IntVal(Parser.tokenizer.next.value)
-            Parser.tokenizer.selectNext()
-            return result
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
 
+        # Aplicar o operador unário se necessário
+        if op_count % 2 == 1:
+            node = UnOp('MINUS', node)
+
+        return node
+
     @staticmethod
     def run(code: str):
-        try:
-            Parser.tokenizer = Tokenizer(code)
-            Parser.tokenizer.selectNext()
-            result = Parser.parseExpression()
-
-            if Parser.tokenizer.next.type != 'EOF':
-                raise ValueError("Syntax Error: Expected EOF at the end of expression")
-
-            return result  # Retorna a árvore de sintaxe abstrata
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        Parser.tokenizer = Tokenizer(code)
+        Parser.tokenizer.selectNext()
+        return Parser.parseExpression()
 
 # Programa principal
 def main():
@@ -183,12 +180,14 @@ def main():
         print("Please provide a .lua file.")
         return
 
-    filtered_code = PrePro.filter(code)
-    tree = Parser.run(filtered_code)
-
-    # Avaliar a árvore e exibir o resultado
-    result = tree.Evaluate()
-    print(result)
+    try:
+        filtered_code = PrePro.filter(code)
+        tree = Parser.run(filtered_code)
+        result = tree.Evaluate()
+        print(result)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
