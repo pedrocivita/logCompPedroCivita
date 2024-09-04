@@ -45,6 +45,7 @@ class Tokenizer:
         elif current_char == '*':
             # Verifica se há dois asteriscos '**' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
+                self.position += 2  # Avança sobre o operador inválido
                 raise ValueError("Invalid operator: '**'")
             self.next = Token('MULT', None)
             self.position += 1
@@ -52,6 +53,7 @@ class Tokenizer:
         elif current_char == '/':
             # Verifica se há dois slashes '//' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
+                self.position += 2  # Avança sobre o operador inválido
                 raise ValueError("Invalid operator: '//'")
             self.next = Token('DIV', None)
             self.position += 1
