@@ -42,10 +42,10 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self):
-        if self.value == 'PLUS':
-            return +self.children[0].Evaluate()
-        elif self.value == 'MINUS':
+        if self.value == 'MINUS':
             return -self.children[0].Evaluate()
+        elif self.value == 'PLUS':
+            return +self.children[0].Evaluate()
 
 class IntVal(Node):
     def __init__(self, value):
@@ -136,11 +136,11 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        # Tratar múltiplos operadores unários
+        # Tratar múltiplos operadores unários acumulados
         if Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
-            return UnOp(op_type, Parser.parseFactor())
+            return UnOp(op_type, Parser.parseFactor())  # Recursivamente lida com operadores unários
 
         node = None
         if Parser.tokenizer.next.type == 'INT':
