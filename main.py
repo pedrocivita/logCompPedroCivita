@@ -37,9 +37,15 @@ class Tokenizer:
             self.next = Token('MINUS', None)
             self.position += 1
         elif current_char == '*':
+            # Verifica se há dois asteriscos '**' que são inválidos
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
+                raise ValueError(f"Invalid operator: '**'")
             self.next = Token('MULT', None)
             self.position += 1
         elif current_char == '/':
+            # Verifica se há dois slashes '//' que são inválidos
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
+                raise ValueError(f"Invalid operator: '//'")
             self.next = Token('DIV', None)
             self.position += 1
         elif current_char == '(':
