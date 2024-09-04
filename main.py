@@ -136,9 +136,9 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        # Lidar com múltiplos operadores unários
         op_count = 0
 
+        # Lidar com múltiplos operadores unários
         while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
             if Parser.tokenizer.next.type == 'MINUS':
                 op_count += 1
