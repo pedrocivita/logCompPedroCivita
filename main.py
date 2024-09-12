@@ -14,8 +14,8 @@ class Tokenizer:
         self.next = None
 
     def selectNext(self):
-        # Ignora espaços em branco
-        while self.position < len(self.source) and self.source[self.position] == ' ':
+        # Ignora espaços em branco e quebras de linha
+        while self.position < len(self.source) and self.source[self.position] in [' ', '\n', '\t', '\r']:
             self.position += 1
 
         if self.position >= len(self.source):
@@ -68,7 +68,7 @@ class Tokenizer:
             self.next = Token('SEMICOLON', None)
             self.position += 1
 
-        # Parênteses
+        # Parênteses e blocos
         elif current_char == '(':
             self.next = Token('LPAREN', None)
             self.position += 1
@@ -77,7 +77,6 @@ class Tokenizer:
             self.next = Token('RPAREN', None)
             self.position += 1
 
-        # Bloco de código
         elif current_char == '{':
             self.next = Token('LBRACE', None)
             self.position += 1
@@ -86,6 +85,7 @@ class Tokenizer:
             self.next = Token('RBRACE', None)
             self.position += 1
 
+        # Caracteres inesperados
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
@@ -93,15 +93,15 @@ class Parser:
     @staticmethod
     def parseBlock():
         if Parser.tokenizer.next.type == 'LBRACE':
-            Parser.tokenizer.selectNext()
+            Parser.tokenizer.selectNext()  # Consome o '{'
             block = []
             while Parser.tokenizer.next.type != 'RBRACE':
                 block.append(Parser.parseStatement())
                 if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()
+                    Parser.tokenizer.selectNext()  # Consome o ';'
             if Parser.tokenizer.next.type != 'RBRACE':
                 raise ValueError("Syntax Error: Expected '}'")
-            Parser.tokenizer.selectNext()
+            Parser.tokenizer.selectNext()  # Consome o '}'
             return block
         else:
             raise ValueError("Syntax Error: Expected '{'")
