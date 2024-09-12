@@ -8,11 +8,6 @@ class Token:
         self.value = value
 
 class Tokenizer:
-    def __init__(self, source: str):
-        self.source = source
-        self.position = 0
-        self.next = None
-
     def selectNext(self):
         # Ignora espaços em branco e quebras de linha
         while self.position < len(self.source) and self.source[self.position] in [' ', '\n', '\t', '\r']:
@@ -32,10 +27,10 @@ class Tokenizer:
                 self.position += 1
             self.next = Token('INT', value)
 
-        # Detecta identificadores (variáveis ou 'printf')
-        elif current_char.isalpha():
+        # Detecta identificadores (variáveis ou 'printf') com underscore
+        elif current_char.isalpha() or current_char == '_':
             identifier = ''
-            while self.position < len(self.source) and self.source[self.position].isalnum():
+            while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
                 identifier += self.source[self.position]
                 self.position += 1
             if identifier == 'printf':
@@ -85,36 +80,24 @@ class Tokenizer:
             self.next = Token('RBRACE', None)
             self.position += 1
 
-        # Caracteres inesperados
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
 class Parser:
     @staticmethod
-    def parseBlock():
-        if Parser.tokenizer.next.type == 'LBRACE':
-            Parser.tokenizer.selectNext()  # Consome o '{'
-            block = []
-            while Parser.tokenizer.next.type != 'RBRACE':
-                block.append(Parser.parseStatement())
-                if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Consome o ';'
-            if Parser.tokenizer.next.type != 'RBRACE':
-                raise ValueError("Syntax Error: Expected '}'")
-            Parser.tokenizer.selectNext()  # Consome o '}'
-            return block
-        else:
-            raise ValueError("Syntax Error: Expected '{'")
-
-    @staticmethod
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
+            # Verifica se o identificador é válido (não começa com número)
+            if identifier[0].isdigit():
+                raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
                 return Assignment(identifier, expr)
+            else:
+                raise ValueError("Syntax Error: Expected '=' after identifier")
         elif Parser.tokenizer.next.type == 'PRINT':
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
@@ -124,6 +107,8 @@ class Parser:
                     raise ValueError("Syntax Error: Expected ')'")
                 Parser.tokenizer.selectNext()
                 return Print(expr)
+            else:
+                raise ValueError("Syntax Error: Expected '(' after 'printf'")
         elif Parser.tokenizer.next.type == 'LBRACE':
             return Parser.parseBlock()
         else:
@@ -198,6 +183,24 @@ class Parser:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+
+    @staticmethod
+    def parseBlock():
+        if Parser.tokenizer.next.type == 'LBRACE':
+            Parser.tokenizer.selectNext()  # Consome o '{'
+            block = []
+            while Parser.tokenizer.next.type != 'RBRACE':
+                block.append(Parser.parseStatement())
+                if Parser.tokenizer.next.type == 'SEMICOLON':
+                    Parser.tokenizer.selectNext()  # Consome o ';'
+                else:
+                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
+            if Parser.tokenizer.next.type != 'RBRACE':
+                raise ValueError("Syntax Error: Expected '}'")
+            Parser.tokenizer.selectNext()  # Consome o '}'
+            return block
+        else:
+            raise ValueError("Syntax Error: Expected '{'")
 
 class PrePro:
     @staticmethod
