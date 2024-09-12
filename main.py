@@ -53,16 +53,10 @@ class Tokenizer:
             self.position += 1
 
         elif current_char == '*':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
-                self.position += 2
-                raise ValueError("Invalid operator: '**'")
             self.next = Token('MULT', None)
             self.position += 1
 
         elif current_char == '/':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
-                self.position += 2
-                raise ValueError("Invalid operator: '//'")
             self.next = Token('DIV', None)
             self.position += 1
 
@@ -83,10 +77,35 @@ class Tokenizer:
             self.next = Token('RPAREN', None)
             self.position += 1
 
+        # Bloco de código
+        elif current_char == '{':
+            self.next = Token('LBRACE', None)
+            self.position += 1
+
+        elif current_char == '}':
+            self.next = Token('RBRACE', None)
+            self.position += 1
+
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
 class Parser:
+    @staticmethod
+    def parseBlock():
+        if Parser.tokenizer.next.type == 'LBRACE':
+            Parser.tokenizer.selectNext()
+            block = []
+            while Parser.tokenizer.next.type != 'RBRACE':
+                block.append(Parser.parseStatement())
+                if Parser.tokenizer.next.type == 'SEMICOLON':
+                    Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type != 'RBRACE':
+                raise ValueError("Syntax Error: Expected '}'")
+            Parser.tokenizer.selectNext()
+            return block
+        else:
+            raise ValueError("Syntax Error: Expected '{'")
+
     @staticmethod
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
@@ -105,6 +124,8 @@ class Parser:
                     raise ValueError("Syntax Error: Expected ')'")
                 Parser.tokenizer.selectNext()
                 return Print(expr)
+        elif Parser.tokenizer.next.type == 'LBRACE':
+            return Parser.parseBlock()
         else:
             return NoOp()
 
@@ -172,11 +193,7 @@ class Parser:
             code = PrePro.filter(code)
             Parser.tokenizer = Tokenizer(code)
             Parser.tokenizer.selectNext()
-            ast = []
-            while Parser.tokenizer.next.type != 'EOF':
-                ast.append(Parser.parseStatement())  # Coleta múltiplos statements
-                if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Avança após o ponto e vírgula
+            ast = Parser.parseBlock()  # Executa o bloco principal
             return ast
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -284,6 +301,15 @@ class Print(Node):
     def Evaluate(self, symbol_table):
         value = self.children[0].Evaluate(symbol_table)
         print(value)
+
+class Block(Node):
+    def __init__(self, statements):
+        super().__init__()
+        self.children = statements
+
+    def Evaluate(self, symbol_table):
+        for statement in self.children:
+            statement.Evaluate(symbol_table)
 
 def main():
     if len(sys.argv) > 1:
