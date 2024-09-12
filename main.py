@@ -18,7 +18,6 @@ class Tokenizer:
         while self.position < len(self.source) and self.source[self.position] == ' ':
             self.position += 1
 
-        # Verifica se alcançou o fim da string
         if self.position >= len(self.source):
             self.next = Token('EOF', None)
             return
@@ -33,6 +32,17 @@ class Tokenizer:
                 self.position += 1
             self.next = Token('INT', value)
 
+        # Detecta identificadores (variáveis ou 'printf')
+        elif current_char.isalpha():
+            identifier = ''
+            while self.position < len(self.source) and self.source[self.position].isalnum():
+                identifier += self.source[self.position]
+                self.position += 1
+            if identifier == 'printf':
+                self.next = Token('PRINT', None)
+            else:
+                self.next = Token('ID', identifier)
+
         # Operadores básicos
         elif current_char == '+':
             self.next = Token('PLUS', None)
@@ -43,19 +53,25 @@ class Tokenizer:
             self.position += 1
 
         elif current_char == '*':
-            # Verifica se há dois asteriscos '**' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '*':
-                self.position += 2  # Avança sobre o operador inválido
+                self.position += 2
                 raise ValueError("Invalid operator: '**'")
             self.next = Token('MULT', None)
             self.position += 1
 
         elif current_char == '/':
-            # Verifica se há dois slashes '//' (operador inválido)
             if self.position + 1 < len(self.source) and self.source[self.position + 1] == '/':
-                self.position += 2  # Avança sobre o operador inválido
+                self.position += 2
                 raise ValueError("Invalid operator: '//'")
             self.next = Token('DIV', None)
+            self.position += 1
+
+        elif current_char == '=':
+            self.next = Token('ASSIGN', None)
+            self.position += 1
+
+        elif current_char == ';':
+            self.next = Token('SEMICOLON', None)
             self.position += 1
 
         # Parênteses
@@ -67,11 +83,31 @@ class Tokenizer:
             self.next = Token('RPAREN', None)
             self.position += 1
 
-        # Caracteres inválidos
         else:
             raise ValueError(f"Unexpected character: {current_char}")
 
 class Parser:
+    @staticmethod
+    def parseStatement():
+        if Parser.tokenizer.next.type == 'ID':
+            identifier = Parser.tokenizer.next.value
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'ASSIGN':
+                Parser.tokenizer.selectNext()
+                expr = Parser.parseExpression()
+                return Assignment(identifier, expr)
+        elif Parser.tokenizer.next.type == 'PRINT':
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LPAREN':
+                Parser.tokenizer.selectNext()
+                expr = Parser.parseExpression()
+                if Parser.tokenizer.next.type != 'RPAREN':
+                    raise ValueError("Syntax Error: Expected ')'")
+                Parser.tokenizer.selectNext()
+                return Print(expr)
+        else:
+            return NoOp()
+
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
@@ -123,25 +159,25 @@ class Parser:
             result = IntVal(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
             return result
+        elif Parser.tokenizer.next.type == 'ID':
+            result = Identifier(Parser.tokenizer.next.value)
+            Parser.tokenizer.selectNext()
+            return result
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
 
     @staticmethod
     def run(code: str):
         try:
-            # Remove comentários usando a classe PrePro
             code = PrePro.filter(code)
-            
             Parser.tokenizer = Tokenizer(code)
             Parser.tokenizer.selectNext()
-            ast = Parser.parseExpression()
-
-            if Parser.tokenizer.next.type != 'EOF':
-                raise ValueError("Syntax Error: Expected EOF at the end of expression")
-
-            # Executa o método Evaluate na raiz da árvore (AST)
-            result = ast.Evaluate()
-            print(result)
+            ast = []
+            while Parser.tokenizer.next.type != 'EOF':
+                ast.append(Parser.parseStatement())  # Coleta múltiplos statements
+                if Parser.tokenizer.next.type == 'SEMICOLON':
+                    Parser.tokenizer.selectNext()  # Avança após o ponto e vírgula
+            return ast
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -153,16 +189,15 @@ class PrePro:
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
         return code
 
-# Classe abstrata Node
+# Classe Node (abstrata) e suas subclasses
 class Node(ABC):
     def __init__(self, value=None):
         self.value = value
         self.children = []
 
     @abstractmethod
-    def Evaluate(self):
+    def Evaluate(self, symbol_table):
         pass
-
 
 # Classe BinOp - Operação binária (2 filhos)
 class BinOp(Node):
@@ -170,10 +205,9 @@ class BinOp(Node):
         super().__init__(value)
         self.children = [left, right]
 
-    def Evaluate(self):
-        # Executa recursivamente o método Evaluate nos filhos
-        left_val = self.children[0].Evaluate()
-        right_val = self.children[1].Evaluate()
+    def Evaluate(self, symbol_table):
+        left_val = self.children[0].Evaluate(symbol_table)
+        right_val = self.children[1].Evaluate(symbol_table)
         if self.value == '+':
             return left_val + right_val
         elif self.value == '-':
@@ -184,9 +218,6 @@ class BinOp(Node):
             if right_val == 0:
                 raise ValueError("Division by zero")
             return left_val // right_val
-        else:
-            raise ValueError(f"Invalid operation: {self.value}")
-
 
 # Classe UnOp - Operação unária (1 filho)
 class UnOp(Node):
@@ -194,32 +225,65 @@ class UnOp(Node):
         super().__init__(value)
         self.children = [child]
 
-    def Evaluate(self):
-        # Executa recursivamente o método Evaluate no filho
-        child_val = self.children[0].Evaluate()
+    def Evaluate(self, symbol_table):
+        child_val = self.children[0].Evaluate(symbol_table)
         if self.value == '+':
             return child_val
         elif self.value == '-':
             return -child_val
-        else:
-            raise ValueError(f"Invalid unary operation: {self.value}")
-
 
 # Classe IntVal - Valor inteiro (sem filhos)
 class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
 
-    def Evaluate(self):
-        # Retorna o próprio valor
+    def Evaluate(self, symbol_table):
         return self.value
-
 
 # Classe NoOp - Operação nula (sem filhos)
 class NoOp(Node):
-    def Evaluate(self):
+    def Evaluate(self, symbol_table):
         return None
 
+class SymbolTable:
+    def __init__(self):
+        self.symbols = {}
+
+    def get(self, identifier):
+        if identifier in self.symbols:
+            return self.symbols[identifier]
+        else:
+            raise ValueError(f"Variable '{identifier}' not found.")
+
+    def set(self, identifier, value):
+        self.symbols[identifier] = value
+
+# Novos Nós para as variáveis, atribuições e o comando printf
+class Identifier(Node):
+    def __init__(self, value):
+        super().__init__(value)
+
+    def Evaluate(self, symbol_table):
+        return symbol_table.get(self.value)
+
+class Assignment(Node):
+    def __init__(self, identifier, expression):
+        super().__init__()
+        self.identifier = identifier
+        self.children = [expression]
+
+    def Evaluate(self, symbol_table):
+        value = self.children[0].Evaluate(symbol_table)
+        symbol_table.set(self.identifier, value)
+
+class Print(Node):
+    def __init__(self, expression):
+        super().__init__()
+        self.children = [expression]
+
+    def Evaluate(self, symbol_table):
+        value = self.children[0].Evaluate(symbol_table)
+        print(value)
 
 def main():
     if len(sys.argv) > 1:
@@ -234,9 +298,23 @@ def main():
         print("Error: No input file provided.", file=sys.stderr)
         sys.exit(1)
 
-    # Executa o compilador com o código do arquivo
-    Parser.run(code)
+    try:
+        # Remove comentários do código
+        filtered_code = PrePro.filter(code)
 
+        # Executa o Parser e gera a AST (lista de statements)
+        ast = Parser.run(filtered_code)
+
+        # Criação da tabela de símbolos (SymbolTable)
+        symbol_table = SymbolTable()
+
+        # Executa cada statement na AST
+        for statement in ast:
+            statement.Evaluate(symbol_table)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
