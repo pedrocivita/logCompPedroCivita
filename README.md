@@ -7,7 +7,7 @@
 ---
 ## Diagrama Sintático
 
-![Diagrama sem nome drawio (1)](https://github.com/user-attachments/assets/1fbcdf4b-f78e-40e2-93e3-cb6018b50942)
+![logCompR5 drawio](https://github.com/user-attachments/assets/558333dc-6abe-4e54-b128-0423407fad0a)
 
 ## EBNF
 
