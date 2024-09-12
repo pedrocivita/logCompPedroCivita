@@ -8,6 +8,11 @@ class Token:
         self.value = value
 
 class Tokenizer:
+    def __init__(self, source: str):
+        self.source = source
+        self.position = 0
+        self.next = None
+
     def selectNext(self):
         # Ignora espaços em branco e quebras de linha
         while self.position < len(self.source) and self.source[self.position] in [' ', '\n', '\t', '\r']:
