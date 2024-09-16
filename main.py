@@ -134,18 +134,12 @@ class Parser:
     @staticmethod
     def run(code: str):
         try:
-            # Remove comentários
-            code = PrePro.filter(code)
-
-            # Inicia o tokenizer com o código filtrado
+            code = PrePro.filter(code)  # Filtra comentários
             Parser.tokenizer = Tokenizer(code)
             Parser.tokenizer.selectNext()
 
-            # Faz o parsing do bloco principal
-            ast = Parser.parseBlock()
-
-            # Retorna a AST gerada (um bloco de statements)
-            return Block(ast)  # Bloco de statements é retornado para execução
+            ast = Parser.parseBlock()  # Faz o parsing do bloco principal
+            return ast
 
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -299,6 +293,22 @@ class Parser:
             return result
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
+        
+    @staticmethod
+    def parseBlock():
+        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
+            Parser.tokenizer.selectNext()  # Avança sobre '{'
+            block_statements = []
+            while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
+                block_statements.append(Parser.parseStatement())  # Adiciona statements no bloco
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após cada statement
+                    Parser.tokenizer.selectNext()
+                else:
+                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
+            Parser.tokenizer.selectNext()  # Avança sobre '}'
+            return Block(block_statements)  # Retorna o bloco de statements
+        else:
+            raise ValueError("Syntax Error: Expected '{'")
 
 class PrePro:
     @staticmethod
