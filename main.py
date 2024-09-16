@@ -32,7 +32,7 @@ class Tokenizer:
                 self.position += 1
             self.next = Token('INT', value)
 
-        # Detecta identificadores (variáveis ou 'printf') com underscore
+        # Detecta identificadores (variáveis, printf, if, while, read)
         elif current_char.isalpha() or current_char == '_':
             identifier = ''
             while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
@@ -40,8 +40,50 @@ class Tokenizer:
                 self.position += 1
             if identifier == 'printf':
                 self.next = Token('PRINT', None)
+            elif identifier == 'if':
+                self.next = Token('IF', None)
+            elif identifier == 'else':
+                self.next = Token('ELSE', None)
+            elif identifier == 'while':
+                self.next = Token('WHILE', None)
+            elif identifier == 'read':
+                self.next = Token('READ', None)
             else:
                 self.next = Token('ID', identifier)
+
+        # Operadores booleanos
+        elif current_char == '&' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '&':
+            self.position += 2
+            self.next = Token('AND', None)
+        elif current_char == '|' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '|':
+            self.position += 2
+            self.next = Token('OR', None)
+        elif current_char == '!':
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
+                self.position += 2
+                self.next = Token('NEQ', None)
+            else:
+                self.next = Token('NOT', None)
+                self.position += 1
+
+        # Operadores relacionais
+        elif current_char == '=' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
+            self.position += 2
+            self.next = Token('EQ', None)
+        elif current_char == '<':
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
+                self.position += 2
+                self.next = Token('LE', None)
+            else:
+                self.next = Token('LT', None)
+                self.position += 1
+        elif current_char == '>':
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
+                self.position += 2
+                self.next = Token('GE', None)
+            else:
+                self.next = Token('GT', None)
+                self.position += 1
 
         # Operadores básicos
         elif current_char == '+':
@@ -93,7 +135,6 @@ class Parser:
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
-            # Verifica se o identificador é válido (não começa com número)
             if identifier[0].isdigit():
                 raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
             Parser.tokenizer.selectNext()
@@ -114,16 +155,62 @@ class Parser:
                 return Print(expr)
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
+        elif Parser.tokenizer.next.type == 'READ':
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LPAREN':
+                Parser.tokenizer.selectNext()
+                identifier = Parser.tokenizer.next.value
+                if Parser.tokenizer.next.type != 'ID':
+                    raise ValueError("Syntax Error: Expected identifier in read()")
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.type != 'RPAREN':
+                    raise ValueError("Syntax Error: Expected ')'")
+                Parser.tokenizer.selectNext()
+                return Read(identifier)
+        elif Parser.tokenizer.next.type == 'IF':
+            return Parser.parseIf()
+        elif Parser.tokenizer.next.type == 'WHILE':
+            return Parser.parseWhile()
         elif Parser.tokenizer.next.type == 'LBRACE':
             return Parser.parseBlock()
         else:
             return NoOp()
 
     @staticmethod
+    def parseIf():
+        Parser.tokenizer.selectNext()  # Consome 'if'
+        if Parser.tokenizer.next.type != 'LPAREN':
+            raise ValueError("Syntax Error: Expected '(' after 'if'")
+        Parser.tokenizer.selectNext()  # Consome '('
+        condition = Parser.parseExpression()
+        if Parser.tokenizer.next.type != 'RPAREN':
+            raise ValueError("Syntax Error: Expected ')'")
+        Parser.tokenizer.selectNext()  # Consome ')'
+        if_block = Parser.parseBlock()
+        else_block = None
+        if Parser.tokenizer.next.type == 'ELSE':
+            Parser.tokenizer.selectNext()
+            else_block = Parser.parseBlock()
+        return IfNode(condition, if_block, else_block)
+
+    @staticmethod
+    def parseWhile():
+        Parser.tokenizer.selectNext()  # Consome 'while'
+        if Parser.tokenizer.next.type != 'LPAREN':
+            raise ValueError("Syntax Error: Expected '(' after 'while'")
+        Parser.tokenizer.selectNext()  # Consome '('
+        condition = Parser.parseExpression()
+        if Parser.tokenizer.next.type != 'RPAREN':
+            raise ValueError("Syntax Error: Expected ')'")
+        Parser.tokenizer.selectNext()  # Consome ')'
+        block = Parser.parseBlock()
+        return WhileNode(condition, block)
+
+    @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        while Parser.tokenizer.next.type in ['PLUS', 'MINUS']:
+        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseTerm()
@@ -132,6 +219,10 @@ class Parser:
                 result = BinOp('+', result, result2)
             elif op_type == 'MINUS':
                 result = BinOp('-', result, result2)
+            elif op_type == 'AND':
+                result = BinOp('&&', result, result2)
+            elif op_type == 'OR':
+                result = BinOp('||', result, result2)
 
         return result
 
@@ -139,7 +230,7 @@ class Parser:
     def parseTerm():
         result = Parser.parseFactor()
 
-        while Parser.tokenizer.next.type in ['MULT', 'DIV']:
+        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseFactor()
@@ -148,6 +239,18 @@ class Parser:
                 result = BinOp('*', result, result2)
             elif op_type == 'DIV':
                 result = BinOp('/', result, result2)
+            elif op_type == 'EQ':
+                result = BinOp('==', result, result2)
+            elif op_type == 'NEQ':
+                result = BinOp('!=', result, result2)
+            elif op_type == 'LT':
+                result = BinOp('<', result, result2)
+            elif op_type == 'LE':
+                result = BinOp('<=', result, result2)
+            elif op_type == 'GT':
+                result = BinOp('>', result, result2)
+            elif op_type == 'GE':
+                result = BinOp('>=', result, result2)
 
         return result
 
@@ -176,36 +279,6 @@ class Parser:
             return result
         else:
             raise ValueError("Syntax Error: Expected INT or '('")
-
-    @staticmethod
-    def run(code: str):
-        try:
-            code = PrePro.filter(code)
-            Parser.tokenizer = Tokenizer(code)
-            Parser.tokenizer.selectNext()
-            ast = Parser.parseBlock()  # Executa o bloco principal
-            return ast
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-
-    @staticmethod
-    def parseBlock():
-        if Parser.tokenizer.next.type == 'LBRACE':
-            Parser.tokenizer.selectNext()  # Consome o '{'
-            block = []
-            while Parser.tokenizer.next.type != 'RBRACE':
-                block.append(Parser.parseStatement())
-                if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Consome o ';'
-                else:
-                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
-            if Parser.tokenizer.next.type != 'RBRACE':
-                raise ValueError("Syntax Error: Expected '}'")
-            Parser.tokenizer.selectNext()  # Consome o '}'
-            return block
-        else:
-            raise ValueError("Syntax Error: Expected '{'")
 
 class PrePro:
     @staticmethod
@@ -319,6 +392,41 @@ class Block(Node):
         for statement in self.children:
             statement.Evaluate(symbol_table)
 
+# Classe para comandos if
+class IfNode(Node):
+    def __init__(self, condition, if_block, else_block=None):
+        super().__init__()
+        self.children = [condition, if_block]
+        if else_block:
+            self.children.append(else_block)
+
+    def Evaluate(self, symbol_table):
+        condition = self.children[0].Evaluate(symbol_table)
+        if condition:
+            self.children[1].Evaluate(symbol_table)
+        elif len(self.children) == 3:
+            self.children[2].Evaluate(symbol_table)
+
+# Classe para comandos while
+class WhileNode(Node):
+    def __init__(self, condition, block):
+        super().__init__()
+        self.children = [condition, block]
+
+    def Evaluate(self, symbol_table):
+        while self.children[0].Evaluate(symbol_table):
+            self.children[1].Evaluate(symbol_table)
+
+# Classe para comandos read
+class Read(Node):
+    def __init__(self, identifier):
+        super().__init__()
+        self.value = identifier
+
+    def Evaluate(self, symbol_table):
+        value = int(input(f"Enter value for {self.value}: "))
+        symbol_table.set(self.value, value)
+
 def main():
     if len(sys.argv) > 1:
         file_name = sys.argv[1]
@@ -336,15 +444,14 @@ def main():
         # Remove comentários do código
         filtered_code = PrePro.filter(code)
 
-        # Executa o Parser e gera a AST (lista de statements)
+        # Executa o Parser e gera a AST (um bloco de statements)
         ast = Parser.run(filtered_code)
 
         # Criação da tabela de símbolos (SymbolTable)
         symbol_table = SymbolTable()
 
-        # Executa cada statement na AST
-        for statement in ast:
-            statement.Evaluate(symbol_table)
+        # Executa a AST (um bloco) diretamente, que já pode conter múltiplos statements
+        ast.Evaluate(symbol_table)
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
