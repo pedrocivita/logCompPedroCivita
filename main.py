@@ -132,6 +132,26 @@ class Tokenizer:
 
 class Parser:
     @staticmethod
+    def run(code: str):
+        try:
+            # Remove comentários
+            code = PrePro.filter(code)
+
+            # Inicia o tokenizer com o código filtrado
+            Parser.tokenizer = Tokenizer(code)
+            Parser.tokenizer.selectNext()
+
+            # Faz o parsing do bloco principal
+            ast = Parser.parseBlock()
+
+            # Retorna a AST gerada (um bloco de statements)
+            return Block(ast)  # Bloco de statements é retornado para execução
+
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    @staticmethod
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
@@ -444,13 +464,13 @@ def main():
         # Remove comentários do código
         filtered_code = PrePro.filter(code)
 
-        # Executa o Parser e gera a AST (um bloco de statements)
+        # Executa o Parser e gera a AST (lista de statements)
         ast = Parser.run(filtered_code)
 
         # Criação da tabela de símbolos (SymbolTable)
         symbol_table = SymbolTable()
 
-        # Executa a AST (um bloco) diretamente, que já pode conter múltiplos statements
+        # Executa a AST (um bloco de statements)
         ast.Evaluate(symbol_table)
 
     except Exception as e:
