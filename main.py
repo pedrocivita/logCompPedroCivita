@@ -32,7 +32,7 @@ class Tokenizer:
                 self.position += 1
             self.next = Token('INT', value)
 
-        # Detecta identificadores (variáveis, printf, if, while, read)
+        # Detecta identificadores (variáveis, printf, if, while, read, scanf)
         elif current_char.isalpha() or current_char == '_':
             identifier = ''
             while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
@@ -48,6 +48,8 @@ class Tokenizer:
                 self.next = Token('WHILE', None)
             elif identifier == 'read':
                 self.next = Token('READ', None)
+            elif identifier == 'scanf':
+                self.next = Token('SCANF', None)
             else:
                 self.next = Token('ID', identifier)
 
@@ -126,9 +128,6 @@ class Tokenizer:
         elif current_char == '}':
             self.next = Token('RBRACE', None)
             self.position += 1
-        
-        elif identifier == 'scanf':
-            self.next = Token('SCANF', None)
 
         else:
             raise ValueError(f"Unexpected character: {current_char}")
@@ -167,7 +166,7 @@ class Parser:
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
                 if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')'")
+                    raise ValueError("Syntax Error: Expected ')' after 'printf'")
                 Parser.tokenizer.selectNext()
                 return Print(expr)
             else:
@@ -178,10 +177,10 @@ class Parser:
                 Parser.tokenizer.selectNext()
                 identifier = Parser.tokenizer.next.value
                 if Parser.tokenizer.next.type != 'ID':
-                    raise ValueError("Syntax Error: Expected identifier in read()")
+                    raise ValueError("Syntax Error: Expected identifier in 'read'")
                 Parser.tokenizer.selectNext()
                 if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')'")
+                    raise ValueError("Syntax Error: Expected ')' after 'read'")
                 Parser.tokenizer.selectNext()
                 return Read(identifier)
         elif Parser.tokenizer.next.type == 'IF':
@@ -190,6 +189,8 @@ class Parser:
             return Parser.parseWhile()
         elif Parser.tokenizer.next.type == 'LBRACE':
             return Parser.parseBlock()
+        elif Parser.tokenizer.next.type == 'SCANF':
+            return Parser.parseScanf()
         else:
             return NoOp()
 
@@ -216,7 +217,6 @@ class Parser:
         else:
             raise ValueError("Syntax Error: Expected '(' after 'if'")
 
-
     @staticmethod
     def parseWhile():
         if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
@@ -232,7 +232,6 @@ class Parser:
                 raise ValueError("Syntax Error: Expected '{' after 'while' condition")
         else:
             raise ValueError("Syntax Error: Expected '(' after 'while'")
-
 
     @staticmethod
     def parseExpression():
@@ -294,7 +293,7 @@ class Parser:
             Parser.tokenizer.selectNext()
             result = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')'")
+                raise ValueError("Syntax Error: Expected ')' after expression")
             Parser.tokenizer.selectNext()
             return result
         elif Parser.tokenizer.next.type == 'INT':
@@ -306,7 +305,7 @@ class Parser:
             Parser.tokenizer.selectNext()
             return result
         else:
-            raise ValueError("Syntax Error: Expected INT or '('")
+            raise ValueError("Syntax Error: Expected INT, ID, or '('")
         
     @staticmethod
     def parseBlock():
@@ -334,7 +333,6 @@ class Parser:
             return ScanfNode()
         else:
             raise ValueError("Syntax Error: Expected '(' after 'scanf'")
-
 
 class PrePro:
     @staticmethod
@@ -372,6 +370,22 @@ class BinOp(Node):
             if right_val == 0:
                 raise ValueError("Division by zero")
             return left_val // right_val
+        elif self.value == '&&':
+            return left_val and right_val
+        elif self.value == '||':
+            return left_val or right_val
+        elif self.value == '==':
+            return left_val == right_val
+        elif self.value == '!=':
+            return left_val != right_val
+        elif self.value == '<':
+            return left_val < right_val
+        elif self.value == '<=':
+            return left_val <= right_val
+        elif self.value == '>':
+            return left_val > right_val
+        elif self.value == '>=':
+            return left_val >= right_val
 
 # Classe UnOp - Operação unária (1 filho)
 class UnOp(Node):
@@ -385,6 +399,8 @@ class UnOp(Node):
             return child_val
         elif self.value == '-':
             return -child_val
+        elif self.value == '!':
+            return not child_val
 
 # Classe IntVal - Valor inteiro (sem filhos)
 class IntVal(Node):
@@ -430,6 +446,7 @@ class Assignment(Node):
         value = self.children[0].Evaluate(symbol_table)
         symbol_table.set(self.identifier, value)
 
+# Classe para leitura com scanf
 class ScanfNode(Node):
     def Evaluate(self, symbol_table):
         return int(input())  # Leitura de valor do terminal
@@ -487,6 +504,7 @@ class Read(Node):
         value = int(input(f"Enter value for {self.value}: "))
         symbol_table.set(self.value, value)
 
+
 def main():
     if len(sys.argv) > 1:
         file_name = sys.argv[1]
@@ -504,13 +522,13 @@ def main():
         # Remove comentários do código
         filtered_code = PrePro.filter(code)
 
-        # Executa o Parser e gera a AST (lista de statements)
+        # Executa o Parser e gera a AST (um bloco principal de statements)
         ast = Parser.run(filtered_code)
 
         # Criação da tabela de símbolos (SymbolTable)
         symbol_table = SymbolTable()
 
-        # Executa a AST (um bloco de statements)
+        # Executa a AST (bloco principal)
         ast.Evaluate(symbol_table)
 
     except Exception as e:
