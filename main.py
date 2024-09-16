@@ -192,33 +192,42 @@ class Parser:
 
     @staticmethod
     def parseIf():
-        Parser.tokenizer.selectNext()  # Consome 'if'
-        if Parser.tokenizer.next.type != 'LPAREN':
-            raise ValueError("Syntax Error: Expected '(' after 'if'")
-        Parser.tokenizer.selectNext()  # Consome '('
-        condition = Parser.parseExpression()
-        if Parser.tokenizer.next.type != 'RPAREN':
-            raise ValueError("Syntax Error: Expected ')'")
-        Parser.tokenizer.selectNext()  # Consome ')'
-        if_block = Parser.parseBlock()
-        else_block = None
-        if Parser.tokenizer.next.type == 'ELSE':
+        if Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            else_block = Parser.parseBlock()
-        return IfNode(condition, if_block, else_block)
+            condition = Parser.parseExpression()
+            if Parser.tokenizer.next.type != 'RPAREN':
+                raise ValueError("Syntax Error: Expected ')' after condition")
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LBRACE':
+                true_block = Parser.parseBlock()
+                false_block = None
+                if Parser.tokenizer.next.type == 'ELSE':
+                    Parser.tokenizer.selectNext()
+                    if Parser.tokenizer.next.type == 'LBRACE':
+                        false_block = Parser.parseBlock()
+                    else:
+                        raise ValueError("Syntax Error: Expected '{' after 'else'")
+                return IfNode(condition, true_block, false_block)
+            else:
+                raise ValueError("Syntax Error: Expected '{' after 'if' condition")
+        else:
+            raise ValueError("Syntax Error: Expected '(' after 'if'")
 
     @staticmethod
     def parseWhile():
-        Parser.tokenizer.selectNext()  # Consome 'while'
-        if Parser.tokenizer.next.type != 'LPAREN':
+        if Parser.tokenizer.next.type == 'LPAREN':
+            Parser.tokenizer.selectNext()
+            condition = Parser.parseExpression()
+            if Parser.tokenizer.next.type != 'RPAREN':
+                raise ValueError("Syntax Error: Expected ')' after condition")
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LBRACE':
+                block = Parser.parseBlock()
+                return WhileNode(condition, block)
+            else:
+                raise ValueError("Syntax Error: Expected '{' after 'while' condition")
+        else:
             raise ValueError("Syntax Error: Expected '(' after 'while'")
-        Parser.tokenizer.selectNext()  # Consome '('
-        condition = Parser.parseExpression()
-        if Parser.tokenizer.next.type != 'RPAREN':
-            raise ValueError("Syntax Error: Expected ')'")
-        Parser.tokenizer.selectNext()  # Consome ')'
-        block = Parser.parseBlock()
-        return WhileNode(condition, block)
 
     @staticmethod
     def parseExpression():
@@ -403,6 +412,10 @@ class Assignment(Node):
     def Evaluate(self, symbol_table):
         value = self.children[0].Evaluate(symbol_table)
         symbol_table.set(self.identifier, value)
+
+class ScanfNode(Node):
+    def Evaluate(self, symbol_table):
+        return int(input())  # Leitura de valor do terminal
 
 class Print(Node):
     def __init__(self, expression):
