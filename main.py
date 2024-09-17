@@ -156,13 +156,13 @@ class Parser:
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
                 if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()
+                    Parser.tokenizer.selectNext()  # Consome o ';'
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Assignment(identifier, expr)
             else:
                 raise ValueError("Syntax Error: Expected '=' after identifier")
-
+        
         elif Parser.tokenizer.next.type == 'PRINT':
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
@@ -172,25 +172,12 @@ class Parser:
                     raise ValueError("Syntax Error: Expected ')' after 'printf'")
                 Parser.tokenizer.selectNext()
                 if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()
+                    Parser.tokenizer.selectNext()  # Consome o ';'
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Print(expr)
-
-        elif Parser.tokenizer.next.type == 'SCANF':
-            return Parser.parseScanf()  # Adicione tratamento para scanf()
-
-        elif Parser.tokenizer.next.type == 'IF':
-            return Parser.parseIf()
-
-        elif Parser.tokenizer.next.type == 'WHILE':
-            return Parser.parseWhile()
-
-        elif Parser.tokenizer.next.type == 'LBRACE':
-            return Parser.parseBlock()
-
-        else:
-            return NoOp()
+            else:
+                raise ValueError("Syntax Error: Expected '(' after 'printf'")
         
     @staticmethod
     def parseIf():
