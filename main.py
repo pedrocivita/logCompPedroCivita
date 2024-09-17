@@ -134,6 +134,20 @@ class Tokenizer:
 
 class Parser:
     @staticmethod
+    def run(code: str):
+        try:
+            code = PrePro.filter(code)  # Filtra comentários
+            Parser.tokenizer = Tokenizer(code)
+            Parser.tokenizer.selectNext()
+
+            ast = Parser.parseBlock()  # Faz o parsing do bloco principal
+            return ast
+
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    @staticmethod
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
@@ -229,7 +243,6 @@ class Parser:
             return ScanfNode()
         else:
             raise ValueError("Syntax Error: Expected '(' after 'scanf'")
-
 
     @staticmethod
     def parseExpression():
