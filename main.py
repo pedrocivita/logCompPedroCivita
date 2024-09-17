@@ -149,19 +149,19 @@ class Parser:
 
     @staticmethod
     def parseStatement():
-        if Parser.tokenizer.next.type == 'ID':  # Atribuições
+        if Parser.tokenizer.next.type == 'ID':  # Para atribuições
             identifier = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após a atribuição
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido
                     Parser.tokenizer.selectNext()
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Assignment(identifier, expr)
 
-        elif Parser.tokenizer.next.type == 'PRINT':  # Comando printf
+        elif Parser.tokenizer.next.type == 'PRINT':  # Para printf()
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
                 Parser.tokenizer.selectNext()
@@ -169,11 +169,43 @@ class Parser:
                 if Parser.tokenizer.next.type != 'RPAREN':
                     raise ValueError("Syntax Error: Expected ')' after 'printf'")
                 Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após printf
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após printf()
                     Parser.tokenizer.selectNext()
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Print(expr)
+            else:
+                raise ValueError("Syntax Error: Expected '(' after 'printf'")
+
+        elif Parser.tokenizer.next.type == 'READ':  # Para scanf()
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LPAREN':
+                Parser.tokenizer.selectNext()
+                identifier = Parser.tokenizer.next.value
+                if Parser.tokenizer.next.type != 'ID':
+                    raise ValueError("Syntax Error: Expected identifier in read()")
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.type != 'RPAREN':
+                    raise ValueError("Syntax Error: Expected ')' after identifier")
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após scanf()
+                    Parser.tokenizer.selectNext()
+                else:
+                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
+                return Read(identifier)
+
+        elif Parser.tokenizer.next.type == 'IF':  # Para if
+            return Parser.parseIf()
+
+        elif Parser.tokenizer.next.type == 'WHILE':  # Para while
+            return Parser.parseWhile()
+
+        elif Parser.tokenizer.next.type == 'LBRACE':  # Para blocos
+            return Parser.parseBlock()
+
+        else:
+            raise ValueError("Syntax Error: Invalid statement")
+
 
         
     @staticmethod
@@ -304,13 +336,13 @@ class Parser:
         
     @staticmethod
     def parseBlock():
-        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco começa com '{'
+        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
             Parser.tokenizer.selectNext()  # Avança sobre '{'
             block_statements = []
             while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
                 block_statements.append(Parser.parseStatement())  # Adiciona cada statement no bloco
                 if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após cada statement
-                    Parser.tokenizer.selectNext()  # Avança sobre ';'
+                    Parser.tokenizer.selectNext()
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
             Parser.tokenizer.selectNext()  # Avança sobre '}'
