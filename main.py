@@ -149,21 +149,19 @@ class Parser:
 
     @staticmethod
     def parseStatement():
-        if Parser.tokenizer.next.type == 'ID':
+        if Parser.tokenizer.next.type == 'ID':  # Atribuições
             identifier = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
-                if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Consome o ';'
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após a atribuição
+                    Parser.tokenizer.selectNext()
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Assignment(identifier, expr)
-            else:
-                raise ValueError("Syntax Error: Expected '=' after identifier")
-        
-        elif Parser.tokenizer.next.type == 'PRINT':
+
+        elif Parser.tokenizer.next.type == 'PRINT':  # Comando printf
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
                 Parser.tokenizer.selectNext()
@@ -171,54 +169,48 @@ class Parser:
                 if Parser.tokenizer.next.type != 'RPAREN':
                     raise ValueError("Syntax Error: Expected ')' after 'printf'")
                 Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Consome o ';'
+                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após printf
+                    Parser.tokenizer.selectNext()
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Print(expr)
-            else:
-                raise ValueError("Syntax Error: Expected '(' after 'printf'")
+
         
     @staticmethod
     def parseIf():
-        Parser.tokenizer.selectNext()  # Consome 'if'
-        if Parser.tokenizer.next.type == 'LPAREN':
+        if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
             Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()
+            condition = Parser.parseExpression()  # Parseia a condição
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')' after condition")
             Parser.tokenizer.selectNext()  # Consome ')'
-            if Parser.tokenizer.next.type == 'LBRACE':
-                true_block = Parser.parseBlock()  # Parseia o bloco do if
+            if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco verdadeiro começa com '{'
+                true_block = Parser.parseBlock()  # Parseia o bloco verdadeiro
                 false_block = None
                 if Parser.tokenizer.next.type == 'ELSE':
                     Parser.tokenizer.selectNext()  # Consome 'else'
-                    if Parser.tokenizer.next.type == 'LBRACE':
-                        false_block = Parser.parseBlock()
+                    if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco falso começa com '{'
+                        false_block = Parser.parseBlock()  # Parseia o bloco falso
                     else:
                         raise ValueError("Syntax Error: Expected '{' after 'else'")
                 return IfNode(condition, true_block, false_block)
             else:
                 raise ValueError("Syntax Error: Expected '{' after 'if' condition")
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'if'")
 
     @staticmethod
     def parseWhile():
-        Parser.tokenizer.selectNext()  # Consome 'while'
-        if Parser.tokenizer.next.type == 'LPAREN':
+        if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
             Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()
+            condition = Parser.parseExpression()  # Parseia a condição
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')' after condition")
             Parser.tokenizer.selectNext()  # Consome ')'
-            if Parser.tokenizer.next.type == 'LBRACE':
-                block = Parser.parseBlock()
+            if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco começa com '{'
+                block = Parser.parseBlock()  # Parseia o bloco do 'while'
                 return WhileNode(condition, block)
             else:
                 raise ValueError("Syntax Error: Expected '{' after 'while' condition")
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'while'")
+
 
     @staticmethod
     def parseScanf():
@@ -312,19 +304,20 @@ class Parser:
         
     @staticmethod
     def parseBlock():
-        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
+        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco começa com '{'
             Parser.tokenizer.selectNext()  # Avança sobre '{'
             block_statements = []
             while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
-                block_statements.append(Parser.parseStatement())  # Adiciona statements no bloco
+                block_statements.append(Parser.parseStatement())  # Adiciona cada statement no bloco
                 if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após cada statement
-                    Parser.tokenizer.selectNext()
+                    Parser.tokenizer.selectNext()  # Avança sobre ';'
                 else:
                     raise ValueError("Syntax Error: Expected ';' at the end of statement")
             Parser.tokenizer.selectNext()  # Avança sobre '}'
             return Block(block_statements)  # Retorna o bloco de statements
         else:
             raise ValueError("Syntax Error: Expected '{'")
+
 
 class PrePro:
     @staticmethod
