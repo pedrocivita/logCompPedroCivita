@@ -109,7 +109,6 @@ class Tokenizer:
             self.next = Token('DIV', None)
             self.position += 1
 
-        # Atribuição simples
         elif current_char == '=':
             self.next = Token('ASSIGN', None)
             self.position += 1
@@ -158,7 +157,7 @@ class Parser:
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
 
-            # Garantimos que identificadores inválidos geram erro.
+            # Se o identificador for inválido, levantamos um erro
             if identifier[0].isdigit():
                 raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
 
