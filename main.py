@@ -225,12 +225,26 @@ class Parser:
                 logical_not = not logical_not  # Define se devemos aplicar negação lógica
             Parser.tokenizer.selectNext()
 
+        # Adicionar suporte a scanf() dentro de expressões
+        if Parser.tokenizer.next.value == 'scanf':
+            Parser.tokenizer.selectNext()  # Consome o `scanf`
+            if Parser.tokenizer.next.value == '(':
+                Parser.tokenizer.selectNext()  # Consome '('
+                if Parser.tokenizer.next.value == ')':
+                    Parser.tokenizer.selectNext()  # Consome ')'
+                    result = ScanfNode()  # Criamos um nó Scanf que vai lidar com a leitura
+                    return result  # Retorna o valor lido para ser usado em expressões
+                else:
+                    raise Exception("Expected ')' after 'scanf'")
+            else:
+                raise Exception("Expected '(' after 'scanf'")
+
         if Parser.tokenizer.next.value == '(':
-            Parser.tokenizer.selectNext()
+            Parser.tokenizer.selectNext()  # Consome '('
             result = Parser.parseExpression()
             if Parser.tokenizer.next.value != ')':
                 raise Exception("Missing closing parenthesis")
-            Parser.tokenizer.selectNext()
+            Parser.tokenizer.selectNext()  # Consome ')'
             if unary == -1:
                 result = UnOp('-', result)
             if logical_not:
@@ -255,8 +269,6 @@ class Parser:
 
         else:
             raise Exception("Expected an integer, sub-expression, or identifier")
-
-
 
 class PrePro:
     @staticmethod
