@@ -157,11 +157,11 @@ class Parser:
     def parseStatement():
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
-            
-            # Verifica se o identificador começa com um número
+
+            # Aqui já garantimos que identificadores inválidos como '1x' geram erro.
             if identifier[0].isdigit():
                 raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
-            
+
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
@@ -172,7 +172,7 @@ class Parser:
                 return Assignment(identifier, expr)
             else:
                 raise ValueError("Syntax Error: Expected '=' after identifier")
-        
+
         elif Parser.tokenizer.next.type == 'PRINT':
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
@@ -187,25 +187,25 @@ class Parser:
                 return Print(expr)
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
-        
+
         elif Parser.tokenizer.next.type == 'SEMICOLON':  # Adicionado para lidar com múltiplos ';'
             Parser.tokenizer.selectNext()
             return NoOp()  # Sem operação
-        
+
         elif Parser.tokenizer.next.type == 'READ':
             return Parser.parseScanf()
-        
+
         elif Parser.tokenizer.next.type == 'IF':
             return Parser.parseIf()
-        
+
         elif Parser.tokenizer.next.type == 'WHILE':
             return Parser.parseWhile()
-        
+
         elif Parser.tokenizer.next.type == 'LBRACE':
             return Parser.parseBlock()
-        
+
         else:
-            return NoOp()
+            return NoOp()  # Isso garante que comandos inválidos sejam tratados
 
     @staticmethod
     def parseIf():
