@@ -192,10 +192,9 @@ class Parser:
         else:
             raise ValueError("Syntax Error: Invalid statement")
 
-
-        
     @staticmethod
     def parseIf():
+        Parser.tokenizer.selectNext()  # Consome o 'if'
         if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
             Parser.tokenizer.selectNext()
             condition = Parser.parseExpression()  # Parseia a condição
@@ -217,6 +216,7 @@ class Parser:
 
     @staticmethod
     def parseWhile():
+        Parser.tokenizer.selectNext()  # Consome o 'while'
         if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
             Parser.tokenizer.selectNext()
             condition = Parser.parseExpression()  # Parseia a condição
@@ -229,36 +229,11 @@ class Parser:
             else:
                 raise ValueError("Syntax Error: Expected '{' after 'while' condition")
 
-
-    @staticmethod
-    def parseScanf():
-        Parser.tokenizer.selectNext()  # Consome o 'scanf'
-        if Parser.tokenizer.next.type == 'LPAREN':
-            Parser.tokenizer.selectNext()  # Consome '('
-            if Parser.tokenizer.next.type == 'ID':  # Verifica se o próximo token é um identificador
-                identifier = Parser.tokenizer.next.value
-                Parser.tokenizer.selectNext()  # Consome o identificador
-                if Parser.tokenizer.next.type == 'RPAREN':  # Verifica se fecha com ')'
-                    Parser.tokenizer.selectNext()  # Consome ')'
-                    if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após scanf
-                        Parser.tokenizer.selectNext()
-                        return ScanfNode(identifier)  # Retorna o nó do scanf com o identificador
-                    else:
-                        raise ValueError("Syntax Error: Expected ';' after 'scanf'")
-                else:
-                    raise ValueError("Syntax Error: Expected ')' after identifier")
-            else:
-                raise ValueError("Syntax Error: Expected identifier after 'scanf'")
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'scanf'")
-
-
-
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:
+        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:  # Inclui operadores booleanos
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseTerm()
@@ -278,7 +253,7 @@ class Parser:
     def parseTerm():
         result = Parser.parseFactor()
 
-        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:
+        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:  # Operadores de comparação
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseFactor()
@@ -343,8 +318,6 @@ class Parser:
             return Block(block_statements)  # Retorna o bloco de statements
         else:
             raise ValueError("Syntax Error: Expected '{'")
-
-
 
 class PrePro:
     @staticmethod
