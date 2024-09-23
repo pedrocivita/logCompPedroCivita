@@ -8,353 +8,252 @@ class Token:
         self.value = value
 
 class Tokenizer:
-    def __init__(self, source: str):
-        self.source = source
+    def __init__(self, source):
+        self.source = source.strip()
         self.position = 0
         self.next = None
+        self.selectNext()
 
     def selectNext(self):
-        # Ignora espaços em branco e quebras de linha
-        while self.position < len(self.source) and self.source[self.position] in [' ', '\n', '\t', '\r']:
+        # Pula espaços em branco
+        while self.position < len(self.source) and self.source[self.position].isspace():
             self.position += 1
 
-        if self.position >= len(self.source):
+        if self.position == len(self.source):
             self.next = Token('EOF', None)
             return
 
         current_char = self.source[self.position]
 
-        # Detecta números inteiros
+        # Reconhece números inteiros
         if current_char.isdigit():
-            value = 0
+            num = ''
             while self.position < len(self.source) and self.source[self.position].isdigit():
-                value = value * 10 + int(self.source[self.position])
+                num += self.source[self.position]
                 self.position += 1
-            self.next = Token('INT', value)
-
-        # Detecta identificadores (variáveis, printf, if, while, read, scanf)
+            self.next = Token('INT', int(num))
+        
+        # Reconhece identificadores, palavras reservadas e funções especiais
         elif current_char.isalpha() or current_char == '_':
             identifier = ''
             while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
                 identifier += self.source[self.position]
                 self.position += 1
-
-            # Verifica se o identificador começa com um número (inválido)
-            if identifier[0].isdigit():
-                raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
-
-            if identifier == 'printf':
-                self.next = Token('PRINT', None)
-            elif identifier == 'if':
-                self.next = Token('IF', None)
-            elif identifier == 'else':
-                self.next = Token('ELSE', None)
-            elif identifier == 'while':
-                self.next = Token('WHILE', None)
-            elif identifier == 'read':
-                self.next = Token('READ', None)
-            elif identifier == 'scanf':
-                self.next = Token('SCANF', None)
+            
+            # Adicionando suporte para palavras reservadas como if, while, printf, e scanf
+            if identifier in ['printf', 'if', 'while', 'scanf']:
+                self.next = Token('RESERVED', identifier)
             else:
                 self.next = Token('ID', identifier)
 
-        # Operadores booleanos e relacionais
-        elif current_char == '&' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '&':
-            self.position += 2
-            self.next = Token('AND', None)
-        elif current_char == '|' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '|':
-            self.position += 2
-            self.next = Token('OR', None)
-        elif current_char == '!':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
+        # Reconhece operadores, incluindo relacionais e booleanos
+        elif current_char in '+-*/(){}=;><!&|':
+            if self.source[self.position:self.position+2] in ['<=', '>=', '==', '!=', '&&', '||']:
+                self.next = Token('OPERATOR', self.source[self.position:self.position+2])
                 self.position += 2
-                self.next = Token('NEQ', None)
             else:
-                self.next = Token('NOT', None)
+                self.next = Token('OPERATOR', current_char)
                 self.position += 1
-
-        # Operadores relacionais
-        elif current_char == '=' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
-            self.position += 2
-            self.next = Token('EQ', None)
-        elif current_char == '<':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
-                self.position += 2
-                self.next = Token('LE', None)
-            else:
-                self.next = Token('LT', None)
-                self.position += 1
-        elif current_char == '>':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
-                self.position += 2
-                self.next = Token('GE', None)
-            else:
-                self.next = Token('GT', None)
-                self.position += 1
-
-        # Operadores básicos
-        elif current_char == '+':
-            self.next = Token('PLUS', None)
-            self.position += 1
-
-        elif current_char == '-':
-            self.next = Token('MINUS', None)
-            self.position += 1
-
-        elif current_char == '*':
-            self.next = Token('MULT', None)
-            self.position += 1
-
-        elif current_char == '/':
-            self.next = Token('DIV', None)
-            self.position += 1
-
-        elif current_char == '=':
-            self.next = Token('ASSIGN', None)
-            self.position += 1
-
-        elif current_char == ';':
-            self.next = Token('SEMICOLON', None)
-            self.position += 1
-
-        # Parênteses e blocos
-        elif current_char == '(':
-            self.next = Token('LPAREN', None)
-            self.position += 1
-
-        elif current_char == ')':
-            self.next = Token('RPAREN', None)
-            self.position += 1
-
-        elif current_char == '{':
-            self.next = Token('LBRACE', None)
-            self.position += 1
-
-        elif current_char == '}':
-            self.next = Token('RBRACE', None)
-            self.position += 1
 
         else:
-            raise ValueError(f"Unexpected character at position {self.position}: {current_char}")
+            raise Exception(f"Unexpected character: {current_char}")
 
 class Parser:
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+
     @staticmethod
-    def run(code: str):
-        try:
-            code = PrePro.filter(code)  # Filtra comentários
-            Parser.tokenizer = Tokenizer(code)
-            Parser.tokenizer.selectNext()
+    def run(code):
+        Parser.tokenizer = Tokenizer(code)
+        result = Parser.parseBlock()
+        if Parser.tokenizer.next.type != 'EOF':
+            raise Exception("Unexpected data after block")
+        return result
 
-            ast = Parser.parseBlock()  # Faz o parsing do bloco principal
-            return ast
+    @staticmethod
+    def parseBlock():
+        if Parser.tokenizer.next.value != '{':
+            raise Exception("Expected '{' at the start of block")
+        
+        Parser.tokenizer.selectNext()  # Consome o '{'
 
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        statements = []
+
+        # Continue a consumir statements até encontrar '}'
+        while Parser.tokenizer.next.value != '}':
+            if Parser.tokenizer.next.type == 'EOF':
+                raise Exception("Expected '}' at the end of block")
+            statements.append(Parser.parseStatement())
+
+        Parser.tokenizer.selectNext()  # Consome o '}'
+
+        return Block(statements)
+
 
     @staticmethod
     def parseStatement():
+        # Ignorar múltiplos ';'
+        while Parser.tokenizer.next.value == ';':
+            Parser.tokenizer.selectNext()
+
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
-
-            # Se o identificador for inválido, levantamos um erro
-            if identifier[0].isdigit():
-                raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
-
             Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type == 'ASSIGN':
+            if Parser.tokenizer.next.value == '=':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
-                if Parser.tokenizer.next.type != 'SEMICOLON':
-                    raise ValueError("Syntax Error: Expected ';' after assignment")
-                Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
-                return Assignment(identifier, expr)
+                if Parser.tokenizer.next.value == ';':
+                    Parser.tokenizer.selectNext()
+                    return Assignment(identifier, expr)
+                else:
+                    raise Exception("Expected ';' after expression")
             else:
-                raise ValueError("Syntax Error: Expected '=' after identifier")
+                raise Exception("Expected '=' after identifier")
 
-        elif Parser.tokenizer.next.type == 'PRINT':
+        elif Parser.tokenizer.next.value == 'printf':
             Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type == 'LPAREN':
+            if Parser.tokenizer.next.value == '(':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
-                if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')' after expression")
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type != 'SEMICOLON':
-                    raise ValueError("Syntax Error: Expected ';' after printf")
-                Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
-                return Print(expr)
+                if Parser.tokenizer.next.value == ')':
+                    Parser.tokenizer.selectNext()
+                    if Parser.tokenizer.next.value == ';':
+                        Parser.tokenizer.selectNext()
+                        return Print(expr)
+                    else:
+                        raise Exception("Expected ';' after printf")
+                else:
+                    raise Exception("Expected ')' after printf expression")
             else:
-                raise ValueError("Syntax Error: Expected '(' after 'printf'")
+                raise Exception("Expected '(' after printf")
 
-        elif Parser.tokenizer.next.type == 'SEMICOLON':  # Adicionado para lidar com múltiplos ';'
+        # Suporte a scanf()
+        elif Parser.tokenizer.next.value == 'scanf':
             Parser.tokenizer.selectNext()
-            return NoOp()  # Sem operação
+            if Parser.tokenizer.next.value == '(':
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.value == ')':
+                    Parser.tokenizer.selectNext()
+                    if Parser.tokenizer.next.value == ';':
+                        Parser.tokenizer.selectNext()
+                        return ScanfNode()
+                    else:
+                        raise Exception("Expected ';' after scanf")
+                else:
+                    raise Exception("Expected ')' after scanf")
+            else:
+                raise Exception("Expected '(' after scanf")
 
-        elif Parser.tokenizer.next.type == 'READ':
-            return Parser.parseScanf()
+        elif Parser.tokenizer.next.value == 'if':
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.value == '(':
+                Parser.tokenizer.selectNext()
+                condition = Parser.parseExpression()
+                if Parser.tokenizer.next.value == ')':
+                    Parser.tokenizer.selectNext()
+                    true_block = Parser.parseStatement()
+                    if Parser.tokenizer.next.value == 'else':
+                        Parser.tokenizer.selectNext()
+                        false_block = Parser.parseStatement()
+                        return IfNode(condition, true_block, false_block)
+                    return IfNode(condition, true_block)
+                else:
+                    raise Exception("Expected ')' after condition")
+            else:
+                raise Exception("Expected '(' after 'if'")
 
-        elif Parser.tokenizer.next.type == 'IF':
-            return Parser.parseIf()
+        elif Parser.tokenizer.next.value == 'while':
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.value == '(':
+                Parser.tokenizer.selectNext()
+                condition = Parser.parseExpression()
+                if Parser.tokenizer.next.value == ')':
+                    Parser.tokenizer.selectNext()
+                    body = Parser.parseStatement()
+                    return WhileNode(condition, body)
+                else:
+                    raise Exception("Expected ')' after condition")
+            else:
+                raise Exception("Expected '(' after 'while'")
 
-        elif Parser.tokenizer.next.type == 'WHILE':
-            return Parser.parseWhile()
-
-        elif Parser.tokenizer.next.type == 'LBRACE':
+        elif Parser.tokenizer.next.value == '{':
             return Parser.parseBlock()
 
         else:
-            return NoOp()  # Isso garante que comandos inválidos sejam tratados
+            if Parser.tokenizer.next.type != 'EOF':
+                raise Exception(f"Unexpected token: {Parser.tokenizer.next.value}")
+            return NoOp()
 
-
-    @staticmethod
-    def parseIf():
-        Parser.tokenizer.selectNext()
-        if Parser.tokenizer.next.type == 'LPAREN':
-            Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()
-            if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')' after condition")
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type == 'LBRACE':
-                true_block = Parser.parseBlock()
-            else:
-                true_block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
-            false_block = None
-            if Parser.tokenizer.next.type == 'ELSE':
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type == 'LBRACE':
-                    false_block = Parser.parseBlock()
-                else:
-                    false_block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
-            return IfNode(condition, true_block, false_block)
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'if'")
-
-    @staticmethod
-    def parseWhile():
-        Parser.tokenizer.selectNext()
-        if Parser.tokenizer.next.type == 'LPAREN':
-            Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()
-            if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')' after condition")
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type == 'LBRACE':
-                block = Parser.parseBlock()
-            else:
-                block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
-            return WhileNode(condition, block)
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'while'")
-
-    @staticmethod
-    def parseScanf():
-        Parser.tokenizer.selectNext()
-        if Parser.tokenizer.next.type == 'LPAREN':
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')' after 'scanf'")
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type != 'SEMICOLON':
-                raise ValueError("Syntax Error: Expected ';' after scanf")
-            Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
-            return ScanfNode()
-        else:
-            raise ValueError("Syntax Error: Expected '(' after 'scanf'")
 
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:
-            op_type = Parser.tokenizer.next.type
+        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>', '<', '>=', '<=', '&&', '||'):
+            op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            result2 = Parser.parseTerm()
-
-            if op_type == 'PLUS':
-                result = BinOp('+', result, result2)
-            elif op_type == 'MINUS':
-                result = BinOp('-', result, result2)
-            elif op_type == 'AND':
-                result = BinOp('&&', result, result2)
-            elif op_type == 'OR':
-                result = BinOp('||', result, result2)
+            new_node = BinOp(op)
+            new_node.add_child(result)
+            new_node.add_child(Parser.parseTerm())
+            result = new_node
 
         return result
+
 
     @staticmethod
     def parseTerm():
         result = Parser.parseFactor()
-
-        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:
-            op_type = Parser.tokenizer.next.type
+        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('*', '/'):
+            op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            result2 = Parser.parseFactor()
-
-            if op_type == 'MULT':
-                result = BinOp('*', result, result2)
-            elif op_type == 'DIV':
-                result = BinOp('/', result, result2)
-            elif op_type == 'EQ':
-                result = BinOp('==', result, result2)
-            elif op_type == 'NEQ':
-                result = BinOp('!=', result, result2)
-            elif op_type == 'LT':
-                result = BinOp('<', result, result2)
-            elif op_type == 'LE':
-                result = BinOp('<=', result, result2)
-            elif op_type == 'GT':
-                result = BinOp('>', result, result2)
-            elif op_type == 'GE':
-                result = BinOp('>=', result, result2)
-
+            new_node = BinOp(op)
+            new_node.add_child(result)
+            new_node.add_child(Parser.parseFactor())
+            result = new_node
         return result
 
     @staticmethod
     def parseFactor():
-        if Parser.tokenizer.next.type == 'PLUS':
+        unary = 1
+        logical_not = False  # Para lidar com o operador `!`
+
+        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('-', '+', '!'):
+            if Parser.tokenizer.next.value == '-':
+                unary *= -1  # Inverte o sinal para números negativos
+            elif Parser.tokenizer.next.value == '!':
+                logical_not = not logical_not  # Define se devemos aplicar negação lógica
             Parser.tokenizer.selectNext()
-            return UnOp('+', Parser.parseFactor())
-        elif Parser.tokenizer.next.type == 'MINUS':
-            Parser.tokenizer.selectNext()
-            return UnOp('-', Parser.parseFactor())
-        elif Parser.tokenizer.next.type == 'LPAREN':
+
+        if Parser.tokenizer.next.value == '(':
             Parser.tokenizer.selectNext()
             result = Parser.parseExpression()
-            if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')' after expression")
+            if Parser.tokenizer.next.value != ')':
+                raise Exception("Missing closing parenthesis")
             Parser.tokenizer.selectNext()
+            if unary == -1:
+                result = UnOp('-', result)
+            if logical_not:
+                result = UnOp('!', result)
             return result
+
         elif Parser.tokenizer.next.type == 'INT':
-            result = IntVal(Parser.tokenizer.next.value)
+            result = IntVal(Parser.tokenizer.next.value * unary)
             Parser.tokenizer.selectNext()
+            if logical_not:
+                result = UnOp('!', result)
             return result
+
         elif Parser.tokenizer.next.type == 'ID':
             result = Identifier(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
+            if unary == -1:
+                result = UnOp('-', result)
+            if logical_not:
+                result = UnOp('!', result)
             return result
-        else:
-            raise ValueError("Syntax Error: Expected INT, ID, or '('")
-        
-    @staticmethod
-    def parseBlock():
-        if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
-            Parser.tokenizer.selectNext()  # Avança sobre '{'
-            block_statements = []
-            while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
-                # Ignora múltiplos ';' consecutivos
-                while Parser.tokenizer.next.type == 'SEMICOLON':
-                    Parser.tokenizer.selectNext()  # Consome os ';'
 
-                # Adiciona statements no bloco
-                if Parser.tokenizer.next.type != 'RBRACE':  # Evita processar após consumir ';'
-                    block_statements.append(Parser.parseStatement())  
-
-            Parser.tokenizer.selectNext()  # Avança sobre '}'
-            return Block(block_statements)  # Retorna o bloco de statements
         else:
-            raise ValueError("Syntax Error: Expected '{'")
+            raise Exception("Expected an integer, sub-expression, or identifier")
 
 
 class PrePro:
