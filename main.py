@@ -253,6 +253,7 @@ class Parser:
             raise ValueError("Syntax Error: Expected '(' after 'scanf'")
 
 
+
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
@@ -460,12 +461,12 @@ class Assignment(Node):
 class ScanfNode(Node):
     def __init__(self, identifier):
         super().__init__()
-        self.identifier = identifier
+        self.identifier = identifier  # Armazenar o identificador
 
     def Evaluate(self, symbol_table):
-        value = int(input())  # Leitura do valor do terminal
-        symbol_table.set(self.identifier, value)  # Atribui o valor à variável no SymbolTable
-
+        value = int(input())  # Leitura de valor do terminal
+        symbol_table.set(self.identifier, value)  # Armazena o valor na tabela de símbolos
+        return value
 
 class Print(Node):
     def __init__(self, expression):
