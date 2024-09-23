@@ -189,13 +189,12 @@ class Parser:
     def parseExpression():
         result = Parser.parseTerm()
 
+        # Suporte para operadores aritméticos, relacionais e lógicos
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>', '<', '>=', '<=', '&&', '||'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            new_node = BinOp(op)
-            new_node.add_child(result)
-            new_node.add_child(Parser.parseTerm())
-            result = new_node
+            right = Parser.parseTerm()  # Adicionar o lado direito aqui
+            result = BinOp(op, result, right)  # Passar os dois operandos (esquerdo e direito)
 
         return result
 
@@ -203,20 +202,22 @@ class Parser:
     @staticmethod
     def parseTerm():
         result = Parser.parseFactor()
+
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('*', '/'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            new_node = BinOp(op)
-            new_node.add_child(result)
-            new_node.add_child(Parser.parseFactor())
-            result = new_node
+            right = Parser.parseFactor()  # Adicionar o lado direito aqui
+            result = BinOp(op, result, right)  # Passar os dois operandos (esquerdo e direito)
+        
         return result
+
 
     @staticmethod
     def parseFactor():
         unary = 1
         logical_not = False  # Para lidar com o operador `!`
 
+        # Verifica se há operadores unários como `-`, `+` ou `!`
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('-', '+', '!'):
             if Parser.tokenizer.next.value == '-':
                 unary *= -1  # Inverte o sinal para números negativos
@@ -254,6 +255,7 @@ class Parser:
 
         else:
             raise Exception("Expected an integer, sub-expression, or identifier")
+
 
 
 class PrePro:
