@@ -38,6 +38,11 @@ class Tokenizer:
             while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
                 identifier += self.source[self.position]
                 self.position += 1
+
+            # Verifica se o identificador começa com um número (inválido)
+            if identifier[0].isdigit():
+                raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
+
             if identifier == 'printf':
                 self.next = Token('PRINT', None)
             elif identifier == 'if':
@@ -53,7 +58,7 @@ class Tokenizer:
             else:
                 self.next = Token('ID', identifier)
 
-        # Operadores booleanos
+        # Operadores booleanos e relacionais
         elif current_char == '&' and self.position + 1 < len(self.source) and self.source[self.position + 1] == '&':
             self.position += 2
             self.next = Token('AND', None)
