@@ -177,22 +177,8 @@ class Parser:
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
 
-        elif Parser.tokenizer.next.type == 'READ':  # Para scanf()
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.type == 'LPAREN':
-                Parser.tokenizer.selectNext()
-                identifier = Parser.tokenizer.next.value
-                if Parser.tokenizer.next.type != 'ID':
-                    raise ValueError("Syntax Error: Expected identifier in read()")
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')' after identifier")
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após scanf()
-                    Parser.tokenizer.selectNext()
-                else:
-                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
-                return Read(identifier)
+        elif Parser.tokenizer.next.type == 'SCANF':  # Para scanf()
+            return Parser.parseScanf()
 
         elif Parser.tokenizer.next.type == 'IF':  # Para if
             return Parser.parseIf()
@@ -249,16 +235,23 @@ class Parser:
         Parser.tokenizer.selectNext()  # Consome o 'scanf'
         if Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()  # Consome '('
-            if Parser.tokenizer.next.type != 'RPAREN':
-                raise ValueError("Syntax Error: Expected ')' after 'scanf'")
-            Parser.tokenizer.selectNext()  # Consome ')'
-            if Parser.tokenizer.next.type == 'SEMICOLON':
-                Parser.tokenizer.selectNext()  # Consome ';'
+            if Parser.tokenizer.next.type == 'ID':  # Verifica se o próximo token é um identificador
+                identifier = Parser.tokenizer.next.value
+                Parser.tokenizer.selectNext()  # Consome o identificador
+                if Parser.tokenizer.next.type == 'RPAREN':  # Verifica se fecha com ')'
+                    Parser.tokenizer.selectNext()  # Consome ')'
+                    if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após scanf
+                        Parser.tokenizer.selectNext()
+                        return ScanfNode(identifier)  # Retorna o nó do scanf com o identificador
+                    else:
+                        raise ValueError("Syntax Error: Expected ';' after 'scanf'")
+                else:
+                    raise ValueError("Syntax Error: Expected ')' after identifier")
             else:
-                raise ValueError("Syntax Error: Expected ';' after 'scanf'")
-            return ScanfNode()
+                raise ValueError("Syntax Error: Expected identifier after 'scanf'")
         else:
             raise ValueError("Syntax Error: Expected '(' after 'scanf'")
+
 
     @staticmethod
     def parseExpression():
@@ -349,6 +342,7 @@ class Parser:
             return Block(block_statements)  # Retorna o bloco de statements
         else:
             raise ValueError("Syntax Error: Expected '{'")
+
 
 
 class PrePro:
@@ -463,10 +457,15 @@ class Assignment(Node):
         value = self.children[0].Evaluate(symbol_table)
         symbol_table.set(self.identifier, value)
 
-# Classe para leitura com scanf
 class ScanfNode(Node):
+    def __init__(self, identifier):
+        super().__init__()
+        self.identifier = identifier
+
     def Evaluate(self, symbol_table):
-        return int(input())  # Leitura de valor do terminal
+        value = int(input())  # Leitura do valor do terminal
+        symbol_table.set(self.identifier, value)  # Atribui o valor à variável no SymbolTable
+
 
 class Print(Node):
     def __init__(self, expression):
