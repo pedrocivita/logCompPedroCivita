@@ -149,91 +149,97 @@ class Parser:
 
     @staticmethod
     def parseStatement():
-        if Parser.tokenizer.next.type == 'ID':  # Para atribuições
+        if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
+            if identifier[0].isdigit():
+                raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido
-                    Parser.tokenizer.selectNext()
-                else:
-                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Assignment(identifier, expr)
-
-        elif Parser.tokenizer.next.type == 'PRINT':  # Para printf()
+            else:
+                raise ValueError("Syntax Error: Expected '=' after identifier")
+        elif Parser.tokenizer.next.type == 'PRINT':
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LPAREN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
                 if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')' after 'printf'")
+                    raise ValueError("Syntax Error: Expected ')'")
                 Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Certifica que o ';' seja consumido após printf()
-                    Parser.tokenizer.selectNext()
-                else:
-                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
                 return Print(expr)
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
-
-        elif Parser.tokenizer.next.type == 'SCANF':  # Para scanf()
+        elif Parser.tokenizer.next.type == 'READ':
             return Parser.parseScanf()
-
-        elif Parser.tokenizer.next.type == 'IF':  # Para if
+        elif Parser.tokenizer.next.type == 'IF':
             return Parser.parseIf()
-
-        elif Parser.tokenizer.next.type == 'WHILE':  # Para while
+        elif Parser.tokenizer.next.type == 'WHILE':
             return Parser.parseWhile()
-
-        elif Parser.tokenizer.next.type == 'LBRACE':  # Para blocos
+        elif Parser.tokenizer.next.type == 'LBRACE':
             return Parser.parseBlock()
-
         else:
-            raise ValueError("Syntax Error: Invalid statement")
+            return NoOp()
 
     @staticmethod
     def parseIf():
-        Parser.tokenizer.selectNext()  # Consome o 'if'
-        if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
+        Parser.tokenizer.selectNext()
+        if Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()  # Parseia a condição
+            condition = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')' after condition")
-            Parser.tokenizer.selectNext()  # Consome ')'
-            if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco verdadeiro começa com '{'
-                true_block = Parser.parseBlock()  # Parseia o bloco verdadeiro
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LBRACE':
+                true_block = Parser.parseBlock()
                 false_block = None
                 if Parser.tokenizer.next.type == 'ELSE':
-                    Parser.tokenizer.selectNext()  # Consome 'else'
-                    if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco falso começa com '{'
-                        false_block = Parser.parseBlock()  # Parseia o bloco falso
+                    Parser.tokenizer.selectNext()
+                    if Parser.tokenizer.next.type == 'LBRACE':
+                        false_block = Parser.parseBlock()
                     else:
                         raise ValueError("Syntax Error: Expected '{' after 'else'")
                 return IfNode(condition, true_block, false_block)
             else:
                 raise ValueError("Syntax Error: Expected '{' after 'if' condition")
+        else:
+            raise ValueError("Syntax Error: Expected '(' after 'if'")
 
     @staticmethod
     def parseWhile():
-        Parser.tokenizer.selectNext()  # Consome o 'while'
-        if Parser.tokenizer.next.type == 'LPAREN':  # Verifica se '(' está presente
+        Parser.tokenizer.selectNext()
+        if Parser.tokenizer.next.type == 'LPAREN':
             Parser.tokenizer.selectNext()
-            condition = Parser.parseExpression()  # Parseia a condição
+            condition = Parser.parseExpression()
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')' after condition")
-            Parser.tokenizer.selectNext()  # Consome ')'
-            if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se o bloco começa com '{'
-                block = Parser.parseBlock()  # Parseia o bloco do 'while'
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type == 'LBRACE':
+                block = Parser.parseBlock()
                 return WhileNode(condition, block)
             else:
                 raise ValueError("Syntax Error: Expected '{' after 'while' condition")
+        else:
+            raise ValueError("Syntax Error: Expected '(' after 'while'")
+
+    @staticmethod
+    def parseScanf():
+        Parser.tokenizer.selectNext()
+        if Parser.tokenizer.next.type == 'LPAREN':
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type != 'RPAREN':
+                raise ValueError("Syntax Error: Expected ')' after 'scanf'")
+            Parser.tokenizer.selectNext()
+            return ScanfNode()
+        else:
+            raise ValueError("Syntax Error: Expected '(' after 'scanf'")
 
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:  # Inclui operadores booleanos
+        while Parser.tokenizer.next.type in ['PLUS', 'MINUS', 'AND', 'OR']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseTerm()
@@ -253,7 +259,7 @@ class Parser:
     def parseTerm():
         result = Parser.parseFactor()
 
-        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:  # Operadores de comparação
+        while Parser.tokenizer.next.type in ['MULT', 'DIV', 'EQ', 'NEQ', 'LT', 'LE', 'GT', 'GE']:
             op_type = Parser.tokenizer.next.type
             Parser.tokenizer.selectNext()
             result2 = Parser.parseFactor()
@@ -302,14 +308,14 @@ class Parser:
             return result
         else:
             raise ValueError("Syntax Error: Expected INT, ID, or '('")
-
+        
     @staticmethod
     def parseBlock():
         if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
             Parser.tokenizer.selectNext()  # Avança sobre '{'
             block_statements = []
             while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
-                block_statements.append(Parser.parseStatement())  # Adiciona cada statement no bloco
+                block_statements.append(Parser.parseStatement())  # Adiciona statements no bloco
                 if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após cada statement
                     Parser.tokenizer.selectNext()
                 else:
@@ -431,15 +437,10 @@ class Assignment(Node):
         value = self.children[0].Evaluate(symbol_table)
         symbol_table.set(self.identifier, value)
 
+# Classe para leitura com scanf
 class ScanfNode(Node):
-    def __init__(self, identifier):
-        super().__init__()
-        self.identifier = identifier  # Armazenar o identificador
-
     def Evaluate(self, symbol_table):
-        value = int(input())  # Leitura de valor do terminal
-        symbol_table.set(self.identifier, value)  # Armazena o valor na tabela de símbolos
-        return value
+        return int(input())  # Leitura de valor do terminal
 
 class Print(Node):
     def __init__(self, expression):
