@@ -104,6 +104,7 @@ class Tokenizer:
             self.next = Token('DIV', None)
             self.position += 1
 
+        # Atribuição simples
         elif current_char == '=':
             self.next = Token('ASSIGN', None)
             self.position += 1
@@ -130,7 +131,7 @@ class Tokenizer:
             self.position += 1
 
         else:
-            raise ValueError(f"Unexpected character: {current_char}")
+            raise ValueError(f"Unexpected character at position {self.position}: {current_char}")
 
 class Parser:
     @staticmethod
@@ -157,6 +158,9 @@ class Parser:
             if Parser.tokenizer.next.type == 'ASSIGN':
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
+                if Parser.tokenizer.next.type != 'SEMICOLON':
+                    raise ValueError("Syntax Error: Expected ';' after assignment")
+                Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
                 return Assignment(identifier, expr)
             else:
                 raise ValueError("Syntax Error: Expected '=' after identifier")
@@ -166,8 +170,11 @@ class Parser:
                 Parser.tokenizer.selectNext()
                 expr = Parser.parseExpression()
                 if Parser.tokenizer.next.type != 'RPAREN':
-                    raise ValueError("Syntax Error: Expected ')'")
+                    raise ValueError("Syntax Error: Expected ')' after expression")
                 Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.type != 'SEMICOLON':
+                    raise ValueError("Syntax Error: Expected ';' after printf")
+                Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
                 return Print(expr)
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
@@ -193,16 +200,16 @@ class Parser:
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LBRACE':
                 true_block = Parser.parseBlock()
-                false_block = None
-                if Parser.tokenizer.next.type == 'ELSE':
-                    Parser.tokenizer.selectNext()
-                    if Parser.tokenizer.next.type == 'LBRACE':
-                        false_block = Parser.parseBlock()
-                    else:
-                        raise ValueError("Syntax Error: Expected '{' after 'else'")
-                return IfNode(condition, true_block, false_block)
             else:
-                raise ValueError("Syntax Error: Expected '{' after 'if' condition")
+                true_block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
+            false_block = None
+            if Parser.tokenizer.next.type == 'ELSE':
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.type == 'LBRACE':
+                    false_block = Parser.parseBlock()
+                else:
+                    false_block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
+            return IfNode(condition, true_block, false_block)
         else:
             raise ValueError("Syntax Error: Expected '(' after 'if'")
 
@@ -217,9 +224,9 @@ class Parser:
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.type == 'LBRACE':
                 block = Parser.parseBlock()
-                return WhileNode(condition, block)
             else:
-                raise ValueError("Syntax Error: Expected '{' after 'while' condition")
+                block = Parser.parseStatement()  # Permitir uma única instrução sem chaves
+            return WhileNode(condition, block)
         else:
             raise ValueError("Syntax Error: Expected '(' after 'while'")
 
@@ -231,6 +238,9 @@ class Parser:
             if Parser.tokenizer.next.type != 'RPAREN':
                 raise ValueError("Syntax Error: Expected ')' after 'scanf'")
             Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.type != 'SEMICOLON':
+                raise ValueError("Syntax Error: Expected ';' after scanf")
+            Parser.tokenizer.selectNext()  # Consome o ponto e vírgula
             return ScanfNode()
         else:
             raise ValueError("Syntax Error: Expected '(' after 'scanf'")
@@ -316,10 +326,6 @@ class Parser:
             block_statements = []
             while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
                 block_statements.append(Parser.parseStatement())  # Adiciona statements no bloco
-                if Parser.tokenizer.next.type == 'SEMICOLON':  # Consome o ';' após cada statement
-                    Parser.tokenizer.selectNext()
-                else:
-                    raise ValueError("Syntax Error: Expected ';' at the end of statement")
             Parser.tokenizer.selectNext()  # Avança sobre '}'
             return Block(block_statements)  # Retorna o bloco de statements
         else:
