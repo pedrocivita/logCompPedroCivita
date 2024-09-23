@@ -158,7 +158,7 @@ class Parser:
         if Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
 
-            # Aqui já garantimos que identificadores inválidos como '1x' geram erro.
+            # Garantimos que identificadores inválidos geram erro.
             if identifier[0].isdigit():
                 raise ValueError(f"Syntax Error: Invalid identifier '{identifier}'")
 
@@ -206,6 +206,7 @@ class Parser:
 
         else:
             return NoOp()  # Isso garante que comandos inválidos sejam tratados
+
 
     @staticmethod
     def parseIf():
