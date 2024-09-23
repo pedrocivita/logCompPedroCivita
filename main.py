@@ -302,7 +302,7 @@ class Parser:
             return result
         else:
             raise ValueError("Syntax Error: Expected INT, ID, or '('")
-        
+
     @staticmethod
     def parseBlock():
         if Parser.tokenizer.next.type == 'LBRACE':  # Verifica se é um bloco
