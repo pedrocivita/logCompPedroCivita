@@ -325,11 +325,19 @@ class Parser:
             Parser.tokenizer.selectNext()  # Avança sobre '{'
             block_statements = []
             while Parser.tokenizer.next.type != 'RBRACE':  # Continua até encontrar '}'
-                block_statements.append(Parser.parseStatement())  # Adiciona statements no bloco
+                # Ignora múltiplos ';' consecutivos
+                while Parser.tokenizer.next.type == 'SEMICOLON':
+                    Parser.tokenizer.selectNext()  # Consome os ';'
+
+                # Adiciona statements no bloco
+                if Parser.tokenizer.next.type != 'RBRACE':  # Evita processar após consumir ';'
+                    block_statements.append(Parser.parseStatement())  
+
             Parser.tokenizer.selectNext()  # Avança sobre '}'
             return Block(block_statements)  # Retorna o bloco de statements
         else:
             raise ValueError("Syntax Error: Expected '{'")
+
 
 class PrePro:
     @staticmethod
