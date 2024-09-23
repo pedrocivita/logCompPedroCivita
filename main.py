@@ -458,7 +458,10 @@ class Identifier(Node):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
+        if self.value[0].isdigit():  # Isso deve garantir que um erro seja gerado aqui.
+            raise ValueError(f"Syntax Error: Invalid identifier '{self.value}'")
         return symbol_table.get(self.value)
+
 
 class Assignment(Node):
     def __init__(self, identifier, expression):
