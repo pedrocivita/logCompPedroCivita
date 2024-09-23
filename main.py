@@ -178,6 +178,9 @@ class Parser:
                 return Print(expr)
             else:
                 raise ValueError("Syntax Error: Expected '(' after 'printf'")
+        elif Parser.tokenizer.next.type == 'SEMICOLON':  # Adicionado para lidar com múltiplos ';'
+            Parser.tokenizer.selectNext()
+            return NoOp()  # Sem operação
         elif Parser.tokenizer.next.type == 'READ':
             return Parser.parseScanf()
         elif Parser.tokenizer.next.type == 'IF':
@@ -188,6 +191,7 @@ class Parser:
             return Parser.parseBlock()
         else:
             return NoOp()
+
 
     @staticmethod
     def parseIf():
