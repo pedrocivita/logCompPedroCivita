@@ -7,7 +7,7 @@
 ---
 ## Diagrama Sintático
 
-![Design sem nome (5)](htt ps://github.com/user-attachments/assets/3843d6c9-bc06-4f56-8620-d4280d8f12ba)
+![DS-Roteiro7 drawio](https://github.com/user-attachments/assets/ac69155a-0318-44c7-aeee-1ec3134e9f85)
 
 ## EBNF
 
