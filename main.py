@@ -53,7 +53,7 @@ class Tokenizer:
                 self.position += 1
 
             # Adicionando suporte para palavras reservadas
-            if identifier in ['printf', 'if', 'while', 'scanf', 'int', 'str']:
+            if identifier in ['printf', 'if', 'while', 'scanf', 'int', 'str', 'else']:
                 self.next = Token('RESERVED', identifier)
             else:
                 self.next = Token('ID', identifier)
@@ -95,7 +95,11 @@ class Parser:
         while Parser.tokenizer.next.value != '}':
             if Parser.tokenizer.next.type == 'EOF':
                 raise Exception("Esperado '}' no final do bloco")
-            statements.append(Parser.parseStatement())
+            statement = Parser.parseStatement()
+            statements.append(statement)
+            # Consome pontos e vírgulas após cada statement
+            while Parser.tokenizer.next.value == ';':
+                Parser.tokenizer.selectNext()
 
         Parser.tokenizer.selectNext()  # Consome o '}'
 
@@ -146,9 +150,9 @@ class Parser:
                 expr = Parser.parseExpression()
                 if Parser.tokenizer.next.value == ';':
                     Parser.tokenizer.selectNext()
-                    return Assignment(identifier, expr)
                 else:
                     raise Exception("Esperado ';' após expressão")
+                return Assignment(identifier, expr)
             else:
                 raise Exception("Esperado '=' após identificador")
 
@@ -161,9 +165,9 @@ class Parser:
                     Parser.tokenizer.selectNext()
                     if Parser.tokenizer.next.value == ';':
                         Parser.tokenizer.selectNext()
-                        return Print(expr)
                     else:
                         raise Exception("Esperado ';' após printf")
+                    return Print(expr)
                 else:
                     raise Exception("Esperado ')' após expressão printf")
             else:
@@ -177,9 +181,9 @@ class Parser:
                     Parser.tokenizer.selectNext()
                     if Parser.tokenizer.next.value == ';':
                         Parser.tokenizer.selectNext()
-                        return ScanfNode()
                     else:
                         raise Exception("Esperado ';' após scanf")
+                    return ScanfNode()
                 else:
                     raise Exception("Esperado ')' após scanf")
             else:
@@ -280,10 +284,8 @@ class Parser:
             if Parser.tokenizer.next.value != ')':
                 raise Exception("Faltando parêntese de fechamento")
             Parser.tokenizer.selectNext()
-            if unary == -1:
-                result = UnOp('-', result)
-            if logical_not:
-                result = UnOp('!', result)
+            if unary == -1 or logical_not:
+                result = UnOp('-' if unary == -1 else '!', result)
             return result
 
         elif Parser.tokenizer.next.type == 'INT':
@@ -296,6 +298,10 @@ class Parser:
         elif Parser.tokenizer.next.type == 'STRING':
             result = StringVal(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
+            if logical_not:
+                result = UnOp('!', result)
+            if unary == -1:
+                result = UnOp('-', result)
             return result
 
         elif Parser.tokenizer.next.type == 'ID':
@@ -340,37 +346,37 @@ class BinOp(Node):
                 if left_type == 'str' or right_type == 'str':
                     return (str(left_val) + str(right_val), 'str')
                 # Operação numérica
-                elif left_type == 'int' and right_type == 'int':
-                    return (left_val + right_val, 'int')
+                elif left_type in ('int', 'bool') and right_type in ('int', 'bool'):
+                    return (int(left_val) + int(right_val), 'int')
                 else:
                     raise Exception("Tipos incompatíveis para '+'")
             elif self.value == '-':
-                if left_type == 'int' and right_type == 'int':
-                    return (left_val - right_val, 'int')
+                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
+                    return (int(left_val) - int(right_val), 'int')
                 else:
                     raise Exception("Tipos incompatíveis para '-'")
             elif self.value == '*':
-                if left_type == 'int' and right_type == 'int':
-                    return (left_val * right_val, 'int')
+                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
+                    return (int(left_val) * int(right_val), 'int')
                 else:
                     raise Exception("Tipos incompatíveis para '*'")
             elif self.value == '/':
-                if left_type == 'int' and right_type == 'int':
-                    if right_val == 0:
+                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
+                    if int(right_val) == 0:
                         raise ValueError("Divisão por zero")
-                    return (left_val // right_val, 'int')
+                    return (int(left_val) // int(right_val), 'int')
                 else:
                     raise Exception("Tipos incompatíveis para '/'")
 
         # Operadores lógicos
         elif self.value in ('&&', '||'):
             if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                left_bool = bool(left_val)
-                right_bool = bool(right_val)
+                left_bool = bool(int(left_val))
+                right_bool = bool(int(right_val))
                 if self.value == '&&':
-                    return (int(left_bool and right_bool), 'bool')
+                    return (int(left_bool and right_bool), 'int')
                 elif self.value == '||':
-                    return (int(left_bool or right_bool), 'bool')
+                    return (int(left_bool or right_bool), 'int')
             else:
                 raise Exception("Tipos incompatíveis para operadores lógicos")
 
@@ -378,17 +384,17 @@ class BinOp(Node):
         elif self.value in ('==', '!=', '<', '<=', '>', '>='):
             if left_type == right_type:
                 if self.value == '==':
-                    return (int(left_val == right_val), 'bool')
+                    return (int(left_val == right_val), 'int')
                 elif self.value == '!=':
-                    return (int(left_val != right_val), 'bool')
+                    return (int(left_val != right_val), 'int')
                 elif self.value == '<':
-                    return (int(left_val < right_val), 'bool')
+                    return (int(left_val < right_val), 'int')
                 elif self.value == '<=':
-                    return (int(left_val <= right_val), 'bool')
+                    return (int(left_val <= right_val), 'int')
                 elif self.value == '>':
-                    return (int(left_val > right_val), 'bool')
+                    return (int(left_val > right_val), 'int')
                 elif self.value == '>=':
-                    return (int(left_val >= right_val), 'bool')
+                    return (int(left_val >= right_val), 'int')
             else:
                 raise Exception("Tipos incompatíveis para operadores relacionais")
 
@@ -401,18 +407,18 @@ class UnOp(Node):
         child_val, child_type = self.children[0].Evaluate(symbol_table)
 
         if self.value == '+':
-            if child_type == 'int':
-                return (child_val, 'int')
+            if child_type in ('int', 'bool'):
+                return (int(child_val), 'int')
             else:
                 raise Exception("Operador '+' unário aplicado a tipo inválido")
         elif self.value == '-':
-            if child_type == 'int':
-                return (-child_val, 'int')
+            if child_type in ('int', 'bool'):
+                return (-int(child_val), 'int')
             else:
                 raise Exception("Operador '-' unário aplicado a tipo inválido")
         elif self.value == '!':
             if child_type in ('int', 'bool'):
-                return (int(not bool(child_val)), 'bool')
+                return (int(not bool(int(child_val))), 'int')
             else:
                 raise Exception("Operador '!' aplicado a tipo inválido")
 
@@ -453,7 +459,7 @@ class SymbolTable:
     def set(self, identifier, value, var_type):
         if identifier in self.symbols:
             expected_type = self.symbols[identifier][1]
-            if var_type != expected_type:
+            if var_type != expected_type and not (expected_type == 'int' and var_type == 'bool'):
                 raise Exception(f"Tipo incompatível para '{identifier}'. Esperado '{expected_type}', recebido '{var_type}'.")
             self.symbols[identifier][0] = value
         else:
@@ -487,9 +493,10 @@ class VarDec(Node):
             symbol_table.declare(var_name, self.var_type)
             if expr:
                 value, expr_type = expr.Evaluate(symbol_table)
-                if expr_type != self.var_type:
-                    raise Exception(f"Tipo incompatível na atribuição para '{var_name}'.")
-                symbol_table.set(var_name, value, self.var_type)
+                # Permitir atribuição de 'bool' a 'int'
+                if expr_type != self.var_type and not (self.var_type == 'int' and expr_type == 'bool'):
+                    raise Exception(f"Tipo incompatível na atribuição para '{var_name}'. Esperado '{self.var_type}', recebido '{expr_type}'.")
+                symbol_table.set(var_name, value, expr_type)
 
 class ScanfNode(Node):
     def Evaluate(self, symbol_table):
@@ -525,7 +532,7 @@ class IfNode(Node):
         condition_val, condition_type = self.children[0].Evaluate(symbol_table)
         if condition_type not in ('int', 'bool'):
             raise Exception("Condição do 'if' deve ser do tipo 'int' ou 'bool'")
-        if bool(condition_val):
+        if bool(int(condition_val)):
             self.children[1].Evaluate(symbol_table)
         elif len(self.children) == 3:
             self.children[2].Evaluate(symbol_table)
@@ -540,7 +547,7 @@ class WhileNode(Node):
             condition_val, condition_type = self.children[0].Evaluate(symbol_table)
             if condition_type not in ('int', 'bool'):
                 raise Exception("Condição do 'while' deve ser do tipo 'int' ou 'bool'")
-            if not bool(condition_val):
+            if not bool(int(condition_val)):
                 break
             self.children[1].Evaluate(symbol_table)
 
