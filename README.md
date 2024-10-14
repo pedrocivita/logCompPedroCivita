@@ -7,7 +7,7 @@
 ---
 ## Diagrama Sintático
 
-![Design sem nome (5)](https://github.com/user-attachments/assets/3843d6c9-bc06-4f56-8620-d4280d8f12ba)
+![Design sem nome (5)](htt ps://github.com/user-attachments/assets/3843d6c9-bc06-4f56-8620-d4280d8f12ba)
 
 ## EBNF
 

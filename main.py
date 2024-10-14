@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import re
 
 class Token:
-    def __init__(self, type: str, value: int):
+    def __init__(self, type: str, value):
         self.type = type
         self.value = value
 
@@ -25,29 +25,41 @@ class Tokenizer:
 
         current_char = self.source[self.position]
 
+        # Reconhece strings entre aspas duplas
+        if current_char == '"':
+            self.position += 1  # Consome a aspas inicial
+            string = ''
+            while self.position < len(self.source) and self.source[self.position] != '"':
+                string += self.source[self.position]
+                self.position += 1
+            if self.position == len(self.source):
+                raise Exception("String não finalizada")
+            self.position += 1  # Consome a aspas final
+            self.next = Token('STRING', string)
+
         # Reconhece números inteiros
-        if current_char.isdigit():
+        elif current_char.isdigit():
             num = ''
             while self.position < len(self.source) and self.source[self.position].isdigit():
                 num += self.source[self.position]
                 self.position += 1
             self.next = Token('INT', int(num))
-        
+
         # Reconhece identificadores, palavras reservadas e funções especiais
         elif current_char.isalpha() or current_char == '_':
             identifier = ''
             while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
                 identifier += self.source[self.position]
                 self.position += 1
-            
-            # Adicionando suporte para palavras reservadas como if, while, printf, e scanf
-            if identifier in ['printf', 'if', 'while', 'scanf']:
+
+            # Adicionando suporte para palavras reservadas
+            if identifier in ['printf', 'if', 'while', 'scanf', 'int', 'str']:
                 self.next = Token('RESERVED', identifier)
             else:
                 self.next = Token('ID', identifier)
 
         # Reconhece operadores, incluindo relacionais e booleanos
-        elif current_char in '+-*/(){}=;><!&|':
+        elif current_char in '+-*/(){}=;><!&|,':
             if self.source[self.position:self.position+2] in ['<=', '>=', '==', '!=', '&&', '||']:
                 self.next = Token('OPERATOR', self.source[self.position:self.position+2])
                 self.position += 2
@@ -56,7 +68,7 @@ class Tokenizer:
                 self.position += 1
 
         else:
-            raise Exception(f"Unexpected character: {current_char}")
+            raise Exception(f"Caractere inesperado: {current_char}")
 
 class Parser:
     def __init__(self, tokenizer):
@@ -67,28 +79,27 @@ class Parser:
         Parser.tokenizer = Tokenizer(code)
         result = Parser.parseBlock()
         if Parser.tokenizer.next.type != 'EOF':
-            raise Exception("Unexpected data after block")
+            raise Exception("Dados inesperados após o bloco")
         return result
 
     @staticmethod
     def parseBlock():
         if Parser.tokenizer.next.value != '{':
-            raise Exception("Expected '{' at the start of block")
-        
+            raise Exception("Esperado '{' no início do bloco")
+
         Parser.tokenizer.selectNext()  # Consome o '{'
 
         statements = []
 
-        # Continue a consumir statements até encontrar '}'
+        # Continua consumindo statements até encontrar '}'
         while Parser.tokenizer.next.value != '}':
             if Parser.tokenizer.next.type == 'EOF':
-                raise Exception("Expected '}' at the end of block")
+                raise Exception("Esperado '}' no final do bloco")
             statements.append(Parser.parseStatement())
 
         Parser.tokenizer.selectNext()  # Consome o '}'
 
         return Block(statements)
-
 
     @staticmethod
     def parseStatement():
@@ -96,7 +107,38 @@ class Parser:
         while Parser.tokenizer.next.value == ';':
             Parser.tokenizer.selectNext()
 
-        if Parser.tokenizer.next.type == 'ID':
+        # Declaração de variáveis
+        if Parser.tokenizer.next.type == 'RESERVED' and Parser.tokenizer.next.value in ['int', 'str']:
+            var_type = Parser.tokenizer.next.value
+            Parser.tokenizer.selectNext()
+            var_list = []
+
+            while True:
+                if Parser.tokenizer.next.type != 'ID':
+                    raise Exception("Esperado identificador após o tipo")
+                var_name = Parser.tokenizer.next.value
+                Parser.tokenizer.selectNext()
+
+                # Atribuição opcional na declaração
+                if Parser.tokenizer.next.value == '=':
+                    Parser.tokenizer.selectNext()
+                    expr = Parser.parseExpression()
+                    var_list.append((var_name, expr))
+                else:
+                    var_list.append((var_name, None))
+
+                if Parser.tokenizer.next.value == ',':
+                    Parser.tokenizer.selectNext()
+                    continue
+                elif Parser.tokenizer.next.value == ';':
+                    Parser.tokenizer.selectNext()
+                    break
+                else:
+                    raise Exception("Esperado ',' ou ';' após declaração")
+
+            return VarDec(var_type, var_list)
+
+        elif Parser.tokenizer.next.type == 'ID':
             identifier = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.value == '=':
@@ -106,9 +148,9 @@ class Parser:
                     Parser.tokenizer.selectNext()
                     return Assignment(identifier, expr)
                 else:
-                    raise Exception("Expected ';' after expression")
+                    raise Exception("Esperado ';' após expressão")
             else:
-                raise Exception("Expected '=' after identifier")
+                raise Exception("Esperado '=' após identificador")
 
         elif Parser.tokenizer.next.value == 'printf':
             Parser.tokenizer.selectNext()
@@ -121,13 +163,12 @@ class Parser:
                         Parser.tokenizer.selectNext()
                         return Print(expr)
                     else:
-                        raise Exception("Expected ';' after printf")
+                        raise Exception("Esperado ';' após printf")
                 else:
-                    raise Exception("Expected ')' after printf expression")
+                    raise Exception("Esperado ')' após expressão printf")
             else:
-                raise Exception("Expected '(' after printf")
+                raise Exception("Esperado '(' após printf")
 
-        # Suporte a scanf()
         elif Parser.tokenizer.next.value == 'scanf':
             Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.value == '(':
@@ -138,11 +179,11 @@ class Parser:
                         Parser.tokenizer.selectNext()
                         return ScanfNode()
                     else:
-                        raise Exception("Expected ';' after scanf")
+                        raise Exception("Esperado ';' após scanf")
                 else:
-                    raise Exception("Expected ')' after scanf")
+                    raise Exception("Esperado ')' após scanf")
             else:
-                raise Exception("Expected '(' after scanf")
+                raise Exception("Esperado '(' após scanf")
 
         elif Parser.tokenizer.next.value == 'if':
             Parser.tokenizer.selectNext()
@@ -158,9 +199,9 @@ class Parser:
                         return IfNode(condition, true_block, false_block)
                     return IfNode(condition, true_block)
                 else:
-                    raise Exception("Expected ')' after condition")
+                    raise Exception("Esperado ')' após condição")
             else:
-                raise Exception("Expected '(' after 'if'")
+                raise Exception("Esperado '(' após 'if'")
 
         elif Parser.tokenizer.next.value == 'while':
             Parser.tokenizer.selectNext()
@@ -172,32 +213,29 @@ class Parser:
                     body = Parser.parseStatement()
                     return WhileNode(condition, body)
                 else:
-                    raise Exception("Expected ')' after condition")
+                    raise Exception("Esperado ')' após condição")
             else:
-                raise Exception("Expected '(' after 'while'")
+                raise Exception("Esperado '(' após 'while'")
 
         elif Parser.tokenizer.next.value == '{':
             return Parser.parseBlock()
 
         else:
             if Parser.tokenizer.next.type != 'EOF':
-                raise Exception(f"Unexpected token: {Parser.tokenizer.next.value}")
+                raise Exception(f"Token inesperado: {Parser.tokenizer.next.value}")
             return NoOp()
-
 
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        # Suporte para operadores aritméticos, relacionais e lógicos
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>', '<', '>=', '<=', '&&', '||'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            right = Parser.parseTerm()  # Adicionar o lado direito aqui
-            result = BinOp(op, result, right)  # Passar os dois operandos (esquerdo e direito)
+            right = Parser.parseTerm()
+            result = BinOp(op, result, right)
 
         return result
-
 
     @staticmethod
     def parseTerm():
@@ -206,45 +244,42 @@ class Parser:
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('*', '/'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
-            right = Parser.parseFactor()  # Adicionar o lado direito aqui
-            result = BinOp(op, result, right)  # Passar os dois operandos (esquerdo e direito)
-        
-        return result
+            right = Parser.parseFactor()
+            result = BinOp(op, result, right)
 
+        return result
 
     @staticmethod
     def parseFactor():
         unary = 1
-        logical_not = False  # Para lidar com o operador `!`
+        logical_not = False
 
-        # Verifica se há operadores unários como `-`, `+` ou `!`
         while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('-', '+', '!'):
             if Parser.tokenizer.next.value == '-':
-                unary *= -1  # Inverte o sinal para números negativos
+                unary *= -1
             elif Parser.tokenizer.next.value == '!':
-                logical_not = not logical_not  # Define se devemos aplicar negação lógica
+                logical_not = not logical_not
             Parser.tokenizer.selectNext()
 
-        # Adicionar suporte a scanf() dentro de expressões
         if Parser.tokenizer.next.value == 'scanf':
-            Parser.tokenizer.selectNext()  # Consome o `scanf`
+            Parser.tokenizer.selectNext()
             if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()  # Consome '('
+                Parser.tokenizer.selectNext()
                 if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()  # Consome ')'
-                    result = ScanfNode()  # Criamos um nó Scanf que vai lidar com a leitura
-                    return result  # Retorna o valor lido para ser usado em expressões
+                    Parser.tokenizer.selectNext()
+                    result = ScanfNode()
+                    return result
                 else:
-                    raise Exception("Expected ')' after 'scanf'")
+                    raise Exception("Esperado ')' após 'scanf'")
             else:
-                raise Exception("Expected '(' after 'scanf'")
+                raise Exception("Esperado '(' após 'scanf'")
 
         if Parser.tokenizer.next.value == '(':
-            Parser.tokenizer.selectNext()  # Consome '('
+            Parser.tokenizer.selectNext()
             result = Parser.parseExpression()
             if Parser.tokenizer.next.value != ')':
-                raise Exception("Missing closing parenthesis")
-            Parser.tokenizer.selectNext()  # Consome ')'
+                raise Exception("Faltando parêntese de fechamento")
+            Parser.tokenizer.selectNext()
             if unary == -1:
                 result = UnOp('-', result)
             if logical_not:
@@ -252,32 +287,34 @@ class Parser:
             return result
 
         elif Parser.tokenizer.next.type == 'INT':
-            result = IntVal(Parser.tokenizer.next.value * unary)
+            result = IntVal(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
-            if logical_not:
-                result = UnOp('!', result)
+            if unary == -1 or logical_not:
+                result = UnOp('-' if unary == -1 else '!', result)
+            return result
+
+        elif Parser.tokenizer.next.type == 'STRING':
+            result = StringVal(Parser.tokenizer.next.value)
+            Parser.tokenizer.selectNext()
             return result
 
         elif Parser.tokenizer.next.type == 'ID':
             result = Identifier(Parser.tokenizer.next.value)
             Parser.tokenizer.selectNext()
-            if unary == -1:
-                result = UnOp('-', result)
-            if logical_not:
-                result = UnOp('!', result)
+            if unary == -1 or logical_not:
+                result = UnOp('-' if unary == -1 else '!', result)
             return result
 
         else:
-            raise Exception("Expected an integer, sub-expression, or identifier")
+            raise Exception("Esperado um inteiro, string, sub-expressão ou identificador")
 
 class PrePro:
     @staticmethod
     def filter(code: str) -> str:
-        # Remove comentários do tipo /* */, mas não interfere em // que não são comentários
+        # Remove comentários do tipo /* */
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
         return code
 
-# Classe Node (abstrata) e suas subclasses
 class Node(ABC):
     def __init__(self, value=None):
         self.value = value
@@ -287,93 +324,147 @@ class Node(ABC):
     def Evaluate(self, symbol_table):
         pass
 
-# Classe BinOp - Operação binária (2 filhos)
 class BinOp(Node):
     def __init__(self, value, left, right):
         super().__init__(value)
         self.children = [left, right]
 
     def Evaluate(self, symbol_table):
-        left_val = self.children[0].Evaluate(symbol_table)
-        right_val = self.children[1].Evaluate(symbol_table)
-        if self.value == '+':
-            return left_val + right_val
-        elif self.value == '-':
-            return left_val - right_val
-        elif self.value == '*':
-            return left_val * right_val
-        elif self.value == '/':
-            if right_val == 0:
-                raise ValueError("Division by zero")
-            return left_val // right_val
-        elif self.value == '&&':
-            return left_val and right_val
-        elif self.value == '||':
-            return left_val or right_val
-        elif self.value == '==':
-            return left_val == right_val
-        elif self.value == '!=':
-            return left_val != right_val
-        elif self.value == '<':
-            return left_val < right_val
-        elif self.value == '<=':
-            return left_val <= right_val
-        elif self.value == '>':
-            return left_val > right_val
-        elif self.value == '>=':
-            return left_val >= right_val
+        left_val, left_type = self.children[0].Evaluate(symbol_table)
+        right_val, right_type = self.children[1].Evaluate(symbol_table)
 
-# Classe UnOp - Operação unária (1 filho)
+        # Operações aritméticas
+        if self.value in ('+', '-', '*', '/'):
+            if self.value == '+':
+                # Concatenação de strings
+                if left_type == 'str' or right_type == 'str':
+                    return (str(left_val) + str(right_val), 'str')
+                # Operação numérica
+                elif left_type == 'int' and right_type == 'int':
+                    return (left_val + right_val, 'int')
+                else:
+                    raise Exception("Tipos incompatíveis para '+'")
+            elif self.value == '-':
+                if left_type == 'int' and right_type == 'int':
+                    return (left_val - right_val, 'int')
+                else:
+                    raise Exception("Tipos incompatíveis para '-'")
+            elif self.value == '*':
+                if left_type == 'int' and right_type == 'int':
+                    return (left_val * right_val, 'int')
+                else:
+                    raise Exception("Tipos incompatíveis para '*'")
+            elif self.value == '/':
+                if left_type == 'int' and right_type == 'int':
+                    if right_val == 0:
+                        raise ValueError("Divisão por zero")
+                    return (left_val // right_val, 'int')
+                else:
+                    raise Exception("Tipos incompatíveis para '/'")
+
+        # Operadores lógicos
+        elif self.value in ('&&', '||'):
+            if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
+                left_bool = bool(left_val)
+                right_bool = bool(right_val)
+                if self.value == '&&':
+                    return (int(left_bool and right_bool), 'bool')
+                elif self.value == '||':
+                    return (int(left_bool or right_bool), 'bool')
+            else:
+                raise Exception("Tipos incompatíveis para operadores lógicos")
+
+        # Operadores relacionais
+        elif self.value in ('==', '!=', '<', '<=', '>', '>='):
+            if left_type == right_type:
+                if self.value == '==':
+                    return (int(left_val == right_val), 'bool')
+                elif self.value == '!=':
+                    return (int(left_val != right_val), 'bool')
+                elif self.value == '<':
+                    return (int(left_val < right_val), 'bool')
+                elif self.value == '<=':
+                    return (int(left_val <= right_val), 'bool')
+                elif self.value == '>':
+                    return (int(left_val > right_val), 'bool')
+                elif self.value == '>=':
+                    return (int(left_val >= right_val), 'bool')
+            else:
+                raise Exception("Tipos incompatíveis para operadores relacionais")
+
 class UnOp(Node):
     def __init__(self, value, child):
         super().__init__(value)
         self.children = [child]
 
     def Evaluate(self, symbol_table):
-        child_val = self.children[0].Evaluate(symbol_table)
-        if self.value == '+':
-            return child_val
-        elif self.value == '-':
-            return -child_val
-        elif self.value == '!':
-            return not child_val
+        child_val, child_type = self.children[0].Evaluate(symbol_table)
 
-# Classe IntVal - Valor inteiro (sem filhos)
+        if self.value == '+':
+            if child_type == 'int':
+                return (child_val, 'int')
+            else:
+                raise Exception("Operador '+' unário aplicado a tipo inválido")
+        elif self.value == '-':
+            if child_type == 'int':
+                return (-child_val, 'int')
+            else:
+                raise Exception("Operador '-' unário aplicado a tipo inválido")
+        elif self.value == '!':
+            if child_type in ('int', 'bool'):
+                return (int(not bool(child_val)), 'bool')
+            else:
+                raise Exception("Operador '!' aplicado a tipo inválido")
+
 class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
-        return self.value
+        return (self.value, 'int')
 
-# Classe NoOp - Operação nula (sem filhos)
+class StringVal(Node):
+    def __init__(self, value):
+        super().__init__(value)
+
+    def Evaluate(self, symbol_table):
+        return (self.value, 'str')
+
 class NoOp(Node):
     def Evaluate(self, symbol_table):
-        return None
+        return (None, None)
 
 class SymbolTable:
     def __init__(self):
         self.symbols = {}
 
+    def declare(self, identifier, var_type):
+        if identifier in self.symbols:
+            raise Exception(f"Variável '{identifier}' já declarada.")
+        self.symbols[identifier] = [None, var_type]
+
     def get(self, identifier):
         if identifier in self.symbols:
-            return self.symbols[identifier]
+            value, var_type = self.symbols[identifier]
+            return value, var_type
         else:
-            raise ValueError(f"Variable '{identifier}' not found.")
+            raise Exception(f"Variável '{identifier}' não declarada.")
 
-    def set(self, identifier, value):
-        self.symbols[identifier] = value
+    def set(self, identifier, value, var_type):
+        if identifier in self.symbols:
+            expected_type = self.symbols[identifier][1]
+            if var_type != expected_type:
+                raise Exception(f"Tipo incompatível para '{identifier}'. Esperado '{expected_type}', recebido '{var_type}'.")
+            self.symbols[identifier][0] = value
+        else:
+            raise Exception(f"Variável '{identifier}' não declarada.")
 
-# Novos Nós para as variáveis, atribuições e o comando printf
 class Identifier(Node):
     def __init__(self, value):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
-        if self.value[0].isdigit():  # Isso deve garantir que um erro seja gerado aqui.
-            raise ValueError(f"Syntax Error: Invalid identifier '{self.value}'")
         return symbol_table.get(self.value)
-
 
 class Assignment(Node):
     def __init__(self, identifier, expression):
@@ -382,13 +473,28 @@ class Assignment(Node):
         self.children = [expression]
 
     def Evaluate(self, symbol_table):
-        value = self.children[0].Evaluate(symbol_table)
-        symbol_table.set(self.identifier, value)
+        value, var_type = self.children[0].Evaluate(symbol_table)
+        symbol_table.set(self.identifier, value, var_type)
 
-# Classe para leitura com scanf
+class VarDec(Node):
+    def __init__(self, var_type, var_list):
+        super().__init__()
+        self.var_type = var_type
+        self.var_list = var_list  # Lista de tuplas (nome, expressão ou None)
+
+    def Evaluate(self, symbol_table):
+        for var_name, expr in self.var_list:
+            symbol_table.declare(var_name, self.var_type)
+            if expr:
+                value, expr_type = expr.Evaluate(symbol_table)
+                if expr_type != self.var_type:
+                    raise Exception(f"Tipo incompatível na atribuição para '{var_name}'.")
+                symbol_table.set(var_name, value, self.var_type)
+
 class ScanfNode(Node):
     def Evaluate(self, symbol_table):
-        return int(input())  # Leitura de valor do terminal
+        value = int(input())
+        return (value, 'int')
 
 class Print(Node):
     def __init__(self, expression):
@@ -396,7 +502,7 @@ class Print(Node):
         self.children = [expression]
 
     def Evaluate(self, symbol_table):
-        value = self.children[0].Evaluate(symbol_table)
+        value, var_type = self.children[0].Evaluate(symbol_table)
         print(value)
 
 class Block(Node):
@@ -408,7 +514,6 @@ class Block(Node):
         for statement in self.children:
             statement.Evaluate(symbol_table)
 
-# Classe para comandos if
 class IfNode(Node):
     def __init__(self, condition, if_block, else_block=None):
         super().__init__()
@@ -417,32 +522,27 @@ class IfNode(Node):
             self.children.append(else_block)
 
     def Evaluate(self, symbol_table):
-        condition = self.children[0].Evaluate(symbol_table)
-        if condition:
+        condition_val, condition_type = self.children[0].Evaluate(symbol_table)
+        if condition_type not in ('int', 'bool'):
+            raise Exception("Condição do 'if' deve ser do tipo 'int' ou 'bool'")
+        if bool(condition_val):
             self.children[1].Evaluate(symbol_table)
         elif len(self.children) == 3:
             self.children[2].Evaluate(symbol_table)
 
-# Classe para comandos while
 class WhileNode(Node):
     def __init__(self, condition, block):
         super().__init__()
         self.children = [condition, block]
 
     def Evaluate(self, symbol_table):
-        while self.children[0].Evaluate(symbol_table):
+        while True:
+            condition_val, condition_type = self.children[0].Evaluate(symbol_table)
+            if condition_type not in ('int', 'bool'):
+                raise Exception("Condição do 'while' deve ser do tipo 'int' ou 'bool'")
+            if not bool(condition_val):
+                break
             self.children[1].Evaluate(symbol_table)
-
-# Classe para comandos read
-class Read(Node):
-    def __init__(self, identifier):
-        super().__init__()
-        self.value = identifier
-
-    def Evaluate(self, symbol_table):
-        value = int(input(f"Enter value for {self.value}: "))
-        symbol_table.set(self.value, value)
-
 
 def main():
     if len(sys.argv) > 1:
@@ -451,27 +551,27 @@ def main():
             with open(file_name, 'r') as file:
                 code = file.read()
         except FileNotFoundError:
-            print(f"Error: File '{file_name}' not found.", file=sys.stderr)
+            print(f"Erro: Arquivo '{file_name}' não encontrado.", file=sys.stderr)
             sys.exit(1)
     else:
-        print("Error: No input file provided.", file=sys.stderr)
+        print("Erro: Nenhum arquivo de entrada fornecido.", file=sys.stderr)
         sys.exit(1)
 
     try:
         # Remove comentários do código
         filtered_code = PrePro.filter(code)
 
-        # Executa o Parser e gera a AST (um bloco principal de statements)
+        # Executa o Parser e gera a AST
         ast = Parser.run(filtered_code)
 
-        # Criação da tabela de símbolos (SymbolTable)
+        # Criação da tabela de símbolos
         symbol_table = SymbolTable()
 
-        # Executa a AST (bloco principal)
+        # Executa a AST
         ast.Evaluate(symbol_table)
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Erro: {e}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
