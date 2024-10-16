@@ -16,7 +16,8 @@ class Tokenizer:
 
     def selectNext(self):
         # Pula espaços em branco
-        while self.position < len(self.source) and self.source[self.position].isspace():
+        while self.position < len(self.source) and \
+              self.source[self.position].isspace():
             self.position += 1
 
         if self.position == len(self.source):
@@ -29,7 +30,8 @@ class Tokenizer:
         if current_char == '"':
             self.position += 1  # Consome a aspas inicial
             string = ''
-            while self.position < len(self.source) and self.source[self.position] != '"':
+            while self.position < len(self.source) and \
+                  self.source[self.position] != '"':
                 string += self.source[self.position]
                 self.position += 1
             if self.position == len(self.source):
@@ -40,28 +42,33 @@ class Tokenizer:
         # Reconhece números inteiros
         elif current_char.isdigit():
             num = ''
-            while self.position < len(self.source) and self.source[self.position].isdigit():
+            while self.position < len(self.source) and \
+                  self.source[self.position].isdigit():
                 num += self.source[self.position]
                 self.position += 1
             self.next = Token('INT', int(num))
 
-        # Reconhece identificadores, palavras reservadas e funções especiais
+        # Reconhece identificadores e palavras reservadas
         elif current_char.isalpha() or current_char == '_':
             identifier = ''
-            while self.position < len(self.source) and (self.source[self.position].isalnum() or self.source[self.position] == '_'):
+            while self.position < len(self.source) and \
+                 (self.source[self.position].isalnum() or \
+                  self.source[self.position] == '_'):
                 identifier += self.source[self.position]
                 self.position += 1
 
-            # Adicionando suporte para palavras reservadas
-            if identifier in ['printf', 'if', 'while', 'scanf', 'int', 'str', 'else']:
+            if identifier in ['printf', 'if', 'while', 'scanf',
+                              'int', 'str', 'else']:
                 self.next = Token('RESERVED', identifier)
             else:
                 self.next = Token('ID', identifier)
 
-        # Reconhece operadores, incluindo relacionais e booleanos
+        # Reconhece operadores
         elif current_char in '+-*/(){}=;><!&|,':
-            if self.source[self.position:self.position+2] in ['<=', '>=', '==', '!=', '&&', '||']:
-                self.next = Token('OPERATOR', self.source[self.position:self.position+2])
+            if self.source[self.position:self.position+2] in \
+               ['<=', '>=', '==', '!=', '&&', '||']:
+                self.next = Token('OPERATOR',
+                                  self.source[self.position:self.position+2])
                 self.position += 2
             else:
                 self.next = Token('OPERATOR', current_char)
@@ -87,32 +94,30 @@ class Parser:
         if Parser.tokenizer.next.value != '{':
             raise Exception("Esperado '{' no início do bloco")
 
-        Parser.tokenizer.selectNext()  # Consome o '{'
+        Parser.tokenizer.selectNext()  # Consome '{'
 
         statements = []
 
-        # Continua consumindo statements até encontrar '}'
         while Parser.tokenizer.next.value != '}':
             if Parser.tokenizer.next.type == 'EOF':
                 raise Exception("Esperado '}' no final do bloco")
             statement = Parser.parseStatement()
             statements.append(statement)
-            # Consome pontos e vírgulas após cada statement
             while Parser.tokenizer.next.value == ';':
                 Parser.tokenizer.selectNext()
 
-        Parser.tokenizer.selectNext()  # Consome o '}'
+        Parser.tokenizer.selectNext()  # Consome '}'
 
         return Block(statements)
 
     @staticmethod
     def parseStatement():
-        # Ignorar múltiplos ';'
         while Parser.tokenizer.next.value == ';':
             Parser.tokenizer.selectNext()
 
         # Declaração de variáveis
-        if Parser.tokenizer.next.type == 'RESERVED' and Parser.tokenizer.next.value in ['int', 'str']:
+        if Parser.tokenizer.next.type == 'RESERVED' and \
+           Parser.tokenizer.next.value in ['int', 'str']:
             var_type = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             var_list = []
@@ -123,7 +128,6 @@ class Parser:
                 var_name = Parser.tokenizer.next.value
                 Parser.tokenizer.selectNext()
 
-                # Atribuição opcional na declaração
                 if Parser.tokenizer.next.value == '=':
                     Parser.tokenizer.selectNext()
                     expr = Parser.parseExpression()
@@ -226,14 +230,17 @@ class Parser:
 
         else:
             if Parser.tokenizer.next.type != 'EOF':
-                raise Exception(f"Token inesperado: {Parser.tokenizer.next.value}")
+                raise Exception(f"Token inesperado: "
+                                f"{Parser.tokenizer.next.value}")
             return NoOp()
 
     @staticmethod
     def parseExpression():
         result = Parser.parseTerm()
 
-        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>', '<', '>=', '<=', '&&', '||'):
+        while Parser.tokenizer.next.type == 'OPERATOR' and \
+              Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>',
+                                              '<', '>=', '<=', '&&', '||'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             right = Parser.parseTerm()
@@ -245,7 +252,8 @@ class Parser:
     def parseTerm():
         result = Parser.parseFactor()
 
-        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('*', '/'):
+        while Parser.tokenizer.next.type == 'OPERATOR' and \
+              Parser.tokenizer.next.value in ('*', '/'):
             op = Parser.tokenizer.next.value
             Parser.tokenizer.selectNext()
             right = Parser.parseFactor()
@@ -258,7 +266,8 @@ class Parser:
         unary = 1
         logical_not = False
 
-        while Parser.tokenizer.next.type == 'OPERATOR' and Parser.tokenizer.next.value in ('-', '+', '!'):
+        while Parser.tokenizer.next.type == 'OPERATOR' and \
+              Parser.tokenizer.next.value in ('-', '+', '!'):
             if Parser.tokenizer.next.value == '-':
                 unary *= -1
             elif Parser.tokenizer.next.value == '!':
@@ -312,7 +321,8 @@ class Parser:
             return result
 
         else:
-            raise Exception("Esperado um inteiro, string, sub-expressão ou identificador")
+            raise Exception("Esperado um inteiro, string, sub-expressão ou "
+                            "identificador")
 
 class PrePro:
     @staticmethod
@@ -322,13 +332,35 @@ class PrePro:
         return code
 
 class Node(ABC):
+    i = 0  # Contador estático para IDs únicos
+
     def __init__(self, value=None):
         self.value = value
         self.children = []
+        self.id = Node.newId()
+
+    @staticmethod
+    def newId():
+        Node.i += 1
+        return Node.i
 
     @abstractmethod
     def Evaluate(self, symbol_table):
         pass
+
+class CodeGenerator:
+    code = []
+    labels = set()
+
+    @staticmethod
+    def add_line(line):
+        # Limita o comprimento da linha a 70 caracteres
+        for l in line.split('\n'):
+            CodeGenerator.code.append(l.strip()[:70])
+
+    @staticmethod
+    def get_code():
+        return '\n'.join(CodeGenerator.code)
 
 class BinOp(Node):
     def __init__(self, value, left, right):
@@ -336,67 +368,34 @@ class BinOp(Node):
         self.children = [left, right]
 
     def Evaluate(self, symbol_table):
-        left_val, left_type = self.children[0].Evaluate(symbol_table)
-        right_val, right_type = self.children[1].Evaluate(symbol_table)
+        self.children[0].Evaluate(symbol_table)  # Avalia lado esquerdo
+        CodeGenerator.add_line("PUSH EAX")
+        self.children[1].Evaluate(symbol_table)  # Avalia lado direito
+        CodeGenerator.add_line("POP EBX")
 
-        # Operações aritméticas
-        if self.value in ('+', '-', '*', '/'):
-            if self.value == '+':
-                # Concatenação de strings
-                if left_type == 'str' or right_type == 'str':
-                    return (str(left_val) + str(right_val), 'str')
-                # Operação numérica
-                elif left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                    return (int(left_val) + int(right_val), 'int')
-                else:
-                    raise Exception("Tipos incompatíveis para '+'")
-            elif self.value == '-':
-                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                    return (int(left_val) - int(right_val), 'int')
-                else:
-                    raise Exception("Tipos incompatíveis para '-'")
-            elif self.value == '*':
-                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                    return (int(left_val) * int(right_val), 'int')
-                else:
-                    raise Exception("Tipos incompatíveis para '*'")
-            elif self.value == '/':
-                if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                    if int(right_val) == 0:
-                        raise ValueError("Divisão por zero")
-                    return (int(left_val) // int(right_val), 'int')
-                else:
-                    raise Exception("Tipos incompatíveis para '/'")
-
-        # Operadores lógicos
-        elif self.value in ('&&', '||'):
-            if left_type in ('int', 'bool') and right_type in ('int', 'bool'):
-                left_bool = bool(int(left_val))
-                right_bool = bool(int(right_val))
-                if self.value == '&&':
-                    return (int(left_bool and right_bool), 'int')
-                elif self.value == '||':
-                    return (int(left_bool or right_bool), 'int')
-            else:
-                raise Exception("Tipos incompatíveis para operadores lógicos")
-
-        # Operadores relacionais
-        elif self.value in ('==', '!=', '<', '<=', '>', '>='):
-            if left_type == right_type:
-                if self.value == '==':
-                    return (int(left_val == right_val), 'int')
-                elif self.value == '!=':
-                    return (int(left_val != right_val), 'int')
-                elif self.value == '<':
-                    return (int(left_val < right_val), 'int')
-                elif self.value == '<=':
-                    return (int(left_val <= right_val), 'int')
-                elif self.value == '>':
-                    return (int(left_val > right_val), 'int')
-                elif self.value == '>=':
-                    return (int(left_val >= right_val), 'int')
-            else:
-                raise Exception("Tipos incompatíveis para operadores relacionais")
+        if self.value == '+':
+            CodeGenerator.add_line("ADD EAX, EBX")
+        elif self.value == '-':
+            CodeGenerator.add_line("SUB EAX, EBX")
+        elif self.value == '*':
+            CodeGenerator.add_line("IMUL EAX, EBX")
+        elif self.value == '/':
+            CodeGenerator.add_line("CDQ")
+            CodeGenerator.add_line("IDIV EBX")
+        elif self.value == '==':
+            CodeGenerator.add_line("CMP EBX, EAX")
+            CodeGenerator.add_line("CALL binop_je")
+            CodeGenerator.add_line("MOV EAX, EBX")
+        elif self.value == '<':
+            CodeGenerator.add_line("CMP EAX, EBX")
+            CodeGenerator.add_line("CALL binop_jl")
+            CodeGenerator.add_line("MOV EAX, EBX")
+        elif self.value == '>':
+            CodeGenerator.add_line("CMP EAX, EBX")
+            CodeGenerator.add_line("CALL binop_jg")
+            CodeGenerator.add_line("MOV EAX, EBX")
+        else:
+            raise Exception(f"Operador '{self.value}' não suportado")
 
 class UnOp(Node):
     def __init__(self, value, child):
@@ -404,29 +403,22 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self, symbol_table):
-        child_val, child_type = self.children[0].Evaluate(symbol_table)
-
-        if self.value == '+':
-            if child_type in ('int', 'bool'):
-                return (int(child_val), 'int')
-            else:
-                raise Exception("Operador '+' unário aplicado a tipo inválido")
-        elif self.value == '-':
-            if child_type in ('int', 'bool'):
-                return (-int(child_val), 'int')
-            else:
-                raise Exception("Operador '-' unário aplicado a tipo inválido")
+        self.children[0].Evaluate(symbol_table)
+        if self.value == '-':
+            CodeGenerator.add_line("NEG EAX")
         elif self.value == '!':
-            if child_type in ('int', 'bool'):
-                return (int(not bool(int(child_val))), 'int')
-            else:
-                raise Exception("Operador '!' aplicado a tipo inválido")
+            CodeGenerator.add_line("CMP EAX, 0")
+            CodeGenerator.add_line("MOV EAX, 0")
+            CodeGenerator.add_line("SETE AL")
+        else:
+            raise Exception(f"Operador unário '{self.value}' não suportado")
 
 class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
+        CodeGenerator.add_line(f"MOV EAX, {self.value}")
         return (self.value, 'int')
 
 class StringVal(Node):
@@ -434,34 +426,43 @@ class StringVal(Node):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
-        return (self.value, 'str')
+        raise NotImplementedError("Strings não suportadas neste roteiro")
 
 class NoOp(Node):
     def Evaluate(self, symbol_table):
-        return (None, None)
+        pass
 
 class SymbolTable:
     def __init__(self):
         self.symbols = {}
+        self.offset = 0  # Deslocamento atual do EBP
 
     def declare(self, identifier, var_type):
         if identifier in self.symbols:
             raise Exception(f"Variável '{identifier}' já declarada.")
-        self.symbols[identifier] = [None, var_type]
+        self.offset -= 4  # Cada variável ocupa 4 bytes
+        self.symbols[identifier] = {
+            'offset': self.offset,
+            'type': var_type,
+            'value': None
+        }
 
     def get(self, identifier):
         if identifier in self.symbols:
-            value, var_type = self.symbols[identifier]
-            return value, var_type
+            symbol = self.symbols[identifier]
+            return symbol['value'], symbol['type'], symbol['offset']
         else:
             raise Exception(f"Variável '{identifier}' não declarada.")
 
     def set(self, identifier, value, var_type):
         if identifier in self.symbols:
-            expected_type = self.symbols[identifier][1]
-            if var_type != expected_type and not (expected_type == 'int' and var_type == 'bool'):
-                raise Exception(f"Tipo incompatível para '{identifier}'. Esperado '{expected_type}', recebido '{var_type}'.")
-            self.symbols[identifier][0] = value
+            expected_type = self.symbols[identifier]['type']
+            if var_type != expected_type and \
+               not (expected_type == 'int' and var_type == 'bool'):
+                raise Exception(f"Tipo incompatível para '{identifier}'. "
+                                f"Esperado '{expected_type}', recebido "
+                                f"'{var_type}'.")
+            self.symbols[identifier]['value'] = value
         else:
             raise Exception(f"Variável '{identifier}' não declarada.")
 
@@ -470,7 +471,9 @@ class Identifier(Node):
         super().__init__(value)
 
     def Evaluate(self, symbol_table):
-        return symbol_table.get(self.value)
+        value, var_type, offset = symbol_table.get(self.value)
+        CodeGenerator.add_line(f"MOV EAX, [EBP{offset}]")
+        return value, var_type
 
 class Assignment(Node):
     def __init__(self, identifier, expression):
@@ -480,28 +483,34 @@ class Assignment(Node):
 
     def Evaluate(self, symbol_table):
         value, var_type = self.children[0].Evaluate(symbol_table)
+        offset = symbol_table.symbols[self.identifier]['offset']
+        CodeGenerator.add_line(f"MOV [EBP{offset}], EAX")
         symbol_table.set(self.identifier, value, var_type)
 
 class VarDec(Node):
     def __init__(self, var_type, var_list):
         super().__init__()
         self.var_type = var_type
-        self.var_list = var_list  # Lista de tuplas (nome, expressão ou None)
+        self.var_list = var_list
 
     def Evaluate(self, symbol_table):
         for var_name, expr in self.var_list:
             symbol_table.declare(var_name, self.var_type)
+            offset = symbol_table.symbols[var_name]['offset']
             if expr:
                 value, expr_type = expr.Evaluate(symbol_table)
-                # Permitir atribuição de 'bool' a 'int'
-                if expr_type != self.var_type and not (self.var_type == 'int' and expr_type == 'bool'):
-                    raise Exception(f"Tipo incompatível na atribuição para '{var_name}'. Esperado '{self.var_type}', recebido '{expr_type}'.")
-                symbol_table.set(var_name, value, expr_type)
+                if expr_type != self.var_type and \
+                   not (self.var_type == 'int' and expr_type == 'bool'):
+                    raise Exception(f"Tipo incompatível na atribuição para "
+                                    f"'{var_name}'. Esperado '{self.var_type}',"
+                                    f" recebido '{expr_type}'.")
+                CodeGenerator.add_line(f"MOV [EBP{offset}], EAX")
+            else:
+                CodeGenerator.add_line(f"MOV [EBP{offset}], 0")
 
 class ScanfNode(Node):
     def Evaluate(self, symbol_table):
-        value = int(input())
-        return (value, 'int')
+        raise NotImplementedError("scanf não suportado neste roteiro")
 
 class Print(Node):
     def __init__(self, expression):
@@ -509,8 +518,10 @@ class Print(Node):
         self.children = [expression]
 
     def Evaluate(self, symbol_table):
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        print(value)
+        self.children[0].Evaluate(symbol_table)
+        CodeGenerator.add_line("PUSH EAX")
+        CodeGenerator.add_line("CALL print")
+        CodeGenerator.add_line("POP EAX")
 
 class Block(Node):
     def __init__(self, statements):
@@ -529,13 +540,21 @@ class IfNode(Node):
             self.children.append(else_block)
 
     def Evaluate(self, symbol_table):
-        condition_val, condition_type = self.children[0].Evaluate(symbol_table)
-        if condition_type not in ('int', 'bool'):
-            raise Exception("Condição do 'if' deve ser do tipo 'int' ou 'bool'")
-        if bool(int(condition_val)):
+        end_label = f"ENDIF_{self.id}"
+        else_label = f"ELSE_{self.id}"
+
+        self.children[0].Evaluate(symbol_table)
+        CodeGenerator.add_line("CMP EAX, 0")
+        if len(self.children) == 3:
+            CodeGenerator.add_line(f"JE {else_label}")
             self.children[1].Evaluate(symbol_table)
-        elif len(self.children) == 3:
+            CodeGenerator.add_line(f"JMP {end_label}")
+            CodeGenerator.add_line(f"{else_label}:")
             self.children[2].Evaluate(symbol_table)
+        else:
+            CodeGenerator.add_line(f"JE {end_label}")
+            self.children[1].Evaluate(symbol_table)
+        CodeGenerator.add_line(f"{end_label}:")
 
 class WhileNode(Node):
     def __init__(self, condition, block):
@@ -543,13 +562,16 @@ class WhileNode(Node):
         self.children = [condition, block]
 
     def Evaluate(self, symbol_table):
-        while True:
-            condition_val, condition_type = self.children[0].Evaluate(symbol_table)
-            if condition_type not in ('int', 'bool'):
-                raise Exception("Condição do 'while' deve ser do tipo 'int' ou 'bool'")
-            if not bool(int(condition_val)):
-                break
-            self.children[1].Evaluate(symbol_table)
+        start_label = f"LOOP_{self.id}"
+        end_label = f"ENDLOOP_{self.id}"
+
+        CodeGenerator.add_line(f"{start_label}:")
+        self.children[0].Evaluate(symbol_table)
+        CodeGenerator.add_line("CMP EAX, 0")
+        CodeGenerator.add_line(f"JE {end_label}")
+        self.children[1].Evaluate(symbol_table)
+        CodeGenerator.add_line(f"JMP {start_label}")
+        CodeGenerator.add_line(f"{end_label}:")
 
 def main():
     if len(sys.argv) > 1:
@@ -558,10 +580,12 @@ def main():
             with open(file_name, 'r') as file:
                 code = file.read()
         except FileNotFoundError:
-            print(f"Erro: Arquivo '{file_name}' não encontrado.", file=sys.stderr)
+            print(f"Erro: Arquivo '{file_name}' não encontrado.",
+                  file=sys.stderr)
             sys.exit(1)
     else:
-        print("Erro: Nenhum arquivo de entrada fornecido.", file=sys.stderr)
+        print("Erro: Nenhum arquivo de entrada fornecido.",
+              file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -574,8 +598,26 @@ def main():
         # Criação da tabela de símbolos
         symbol_table = SymbolTable()
 
-        # Executa a AST
+        # Executa a AST para gerar o código assembly
         ast.Evaluate(symbol_table)
+
+        # Lê o base.asm
+        with open('base.asm', 'r') as f:
+            base_asm = f.readlines()
+
+        # Insere o código gerado no lugar apropriado
+        final_asm = []
+        for line in base_asm:
+            if '; codigo gerado pelo compilador' in line:
+                # Insere o código gerado aqui
+                for asm_line in CodeGenerator.code:
+                    final_asm.append('  ' + asm_line)
+            else:
+                final_asm.append(line.rstrip())
+
+        # Escreve o código assembly final em um arquivo
+        with open('program.asm', 'w') as f:
+            f.write('\n'.join(final_asm))
 
     except Exception as e:
         print(f"Erro: {e}", file=sys.stderr)
