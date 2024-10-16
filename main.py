@@ -484,7 +484,7 @@ class Identifier(Node):
 
     def Evaluate(self, symbol_table):
         value, var_type, offset = symbol_table.get(self.value)
-        CodeGenerator.add_line(f"MOV EAX, [EBP{offset}]")
+        CodeGenerator.add_line(f"MOV EAX, DWORD [EBP{offset}]")
         return (value, var_type)
 
 class Assignment(Node):
@@ -496,7 +496,7 @@ class Assignment(Node):
     def Evaluate(self, symbol_table):
         value, var_type = self.children[0].Evaluate(symbol_table)
         offset = symbol_table.symbols[self.identifier]['offset']
-        CodeGenerator.add_line(f"MOV [EBP{offset}], EAX")
+        CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], EAX")
         symbol_table.set(self.identifier, value, var_type)
 
 class VarDec(Node):
@@ -516,9 +516,9 @@ class VarDec(Node):
                     raise Exception(f"Tipo incompatível na atribuição para "
                                     f"'{var_name}'. Esperado '{self.var_type}',"
                                     f" recebido '{expr_type}'.")
-                CodeGenerator.add_line(f"MOV [EBP{offset}], EAX")
+                CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], EAX")
             else:
-                CodeGenerator.add_line(f"MOV [EBP{offset}], 0")
+                CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], 0")
 
 class ScanfNode(Node):
     def Evaluate(self, symbol_table):
