@@ -368,34 +368,45 @@ class BinOp(Node):
         self.children = [left, right]
 
     def Evaluate(self, symbol_table):
-        self.children[0].Evaluate(symbol_table)  # Avalia lado esquerdo
+        # Avalia lado esquerdo
+        left_value, left_type = self.children[0].Evaluate(symbol_table)
         CodeGenerator.add_line("PUSH EAX")
-        self.children[1].Evaluate(symbol_table)  # Avalia lado direito
+        # Avalia lado direito
+        right_value, right_type = self.children[1].Evaluate(symbol_table)
         CodeGenerator.add_line("POP EBX")
 
         if self.value == '+':
             CodeGenerator.add_line("ADD EAX, EBX")
+            result_type = 'int'
         elif self.value == '-':
             CodeGenerator.add_line("SUB EAX, EBX")
+            result_type = 'int'
         elif self.value == '*':
             CodeGenerator.add_line("IMUL EAX, EBX")
+            result_type = 'int'
         elif self.value == '/':
             CodeGenerator.add_line("CDQ")
             CodeGenerator.add_line("IDIV EBX")
+            result_type = 'int'
         elif self.value == '==':
             CodeGenerator.add_line("CMP EBX, EAX")
             CodeGenerator.add_line("CALL binop_je")
             CodeGenerator.add_line("MOV EAX, EBX")
+            result_type = 'int'
         elif self.value == '<':
             CodeGenerator.add_line("CMP EAX, EBX")
             CodeGenerator.add_line("CALL binop_jl")
             CodeGenerator.add_line("MOV EAX, EBX")
+            result_type = 'int'
         elif self.value == '>':
             CodeGenerator.add_line("CMP EAX, EBX")
             CodeGenerator.add_line("CALL binop_jg")
             CodeGenerator.add_line("MOV EAX, EBX")
+            result_type = 'int'
         else:
             raise Exception(f"Operador '{self.value}' não suportado")
+
+        return (None, result_type)
 
 class UnOp(Node):
     def __init__(self, value, child):
@@ -403,7 +414,7 @@ class UnOp(Node):
         self.children = [child]
 
     def Evaluate(self, symbol_table):
-        self.children[0].Evaluate(symbol_table)
+        value, var_type = self.children[0].Evaluate(symbol_table)
         if self.value == '-':
             CodeGenerator.add_line("NEG EAX")
         elif self.value == '!':
@@ -412,6 +423,7 @@ class UnOp(Node):
             CodeGenerator.add_line("SETE AL")
         else:
             raise Exception(f"Operador unário '{self.value}' não suportado")
+        return (None, var_type)
 
 class IntVal(Node):
     def __init__(self, value):
@@ -430,7 +442,7 @@ class StringVal(Node):
 
 class NoOp(Node):
     def Evaluate(self, symbol_table):
-        pass
+        return (None, None)
 
 class SymbolTable:
     def __init__(self):
@@ -473,7 +485,7 @@ class Identifier(Node):
     def Evaluate(self, symbol_table):
         value, var_type, offset = symbol_table.get(self.value)
         CodeGenerator.add_line(f"MOV EAX, [EBP{offset}]")
-        return value, var_type
+        return (value, var_type)
 
 class Assignment(Node):
     def __init__(self, identifier, expression):
@@ -518,7 +530,7 @@ class Print(Node):
         self.children = [expression]
 
     def Evaluate(self, symbol_table):
-        self.children[0].Evaluate(symbol_table)
+        value, var_type = self.children[0].Evaluate(symbol_table)
         CodeGenerator.add_line("PUSH EAX")
         CodeGenerator.add_line("CALL print")
         CodeGenerator.add_line("POP EAX")
@@ -543,7 +555,7 @@ class IfNode(Node):
         end_label = f"ENDIF_{self.id}"
         else_label = f"ELSE_{self.id}"
 
-        self.children[0].Evaluate(symbol_table)
+        value, var_type = self.children[0].Evaluate(symbol_table)
         CodeGenerator.add_line("CMP EAX, 0")
         if len(self.children) == 3:
             CodeGenerator.add_line(f"JE {else_label}")
@@ -566,7 +578,7 @@ class WhileNode(Node):
         end_label = f"ENDLOOP_{self.id}"
 
         CodeGenerator.add_line(f"{start_label}:")
-        self.children[0].Evaluate(symbol_table)
+        value, var_type = self.children[0].Evaluate(symbol_table)
         CodeGenerator.add_line("CMP EAX, 0")
         CodeGenerator.add_line(f"JE {end_label}")
         self.children[1].Evaluate(symbol_table)
