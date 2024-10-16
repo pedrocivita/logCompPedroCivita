@@ -587,53 +587,62 @@ class WhileNode(Node):
 
 def main():
     if len(sys.argv) > 1:
-        file_name = sys.argv[1]
+        file_names = sys.argv[1:]  # Lista de arquivos de entrada
+    else:
+        print("Erro: Nenhum arquivo de entrada fornecido.", file=sys.stderr)
+        sys.exit(1)
+
+    for file_name in file_names:
         try:
             with open(file_name, 'r') as file:
                 code = file.read()
         except FileNotFoundError:
-            print(f"Erro: Arquivo '{file_name}' não encontrado.",
-                  file=sys.stderr)
-            sys.exit(1)
-    else:
-        print("Erro: Nenhum arquivo de entrada fornecido.",
-              file=sys.stderr)
-        sys.exit(1)
+            print(f"Erro: Arquivo '{file_name}' não encontrado.", file=sys.stderr)
+            continue  # Passa para o próximo arquivo
 
-    try:
-        # Remove comentários do código
-        filtered_code = PrePro.filter(code)
+        try:
+            # Remove comentários do código
+            filtered_code = PrePro.filter(code)
 
-        # Executa o Parser e gera a AST
-        ast = Parser.run(filtered_code)
+            # Executa o Parser e gera a AST
+            ast = Parser.run(filtered_code)
 
-        # Criação da tabela de símbolos
-        symbol_table = SymbolTable()
+            # Criação da tabela de símbolos
+            symbol_table = SymbolTable()
 
-        # Executa a AST para gerar o código assembly
-        ast.Evaluate(symbol_table)
+            # Executa a AST para gerar o código assembly
+            ast.Evaluate(symbol_table)
 
-        # Lê o base.asm
-        with open('base.asm', 'r') as f:
-            base_asm = f.readlines()
+            # Lê o base.asm
+            with open('base.asm', 'r') as f:
+                base_asm = f.readlines()
 
-        # Insere o código gerado no lugar apropriado
-        final_asm = []
-        for line in base_asm:
-            if '; codigo gerado pelo compilador' in line:
-                # Insere o código gerado aqui
-                for asm_line in CodeGenerator.code:
-                    final_asm.append('  ' + asm_line)
-            else:
-                final_asm.append(line.rstrip())
+            # Insere o código gerado no lugar apropriado
+            final_asm = []
+            for line in base_asm:
+                if '; codigo gerado pelo compilador' in line:
+                    # Insere o código gerado aqui
+                    for asm_line in CodeGenerator.code:
+                        final_asm.append('  ' + asm_line)
+                else:
+                    final_asm.append(line.rstrip())
 
-        # Escreve o código assembly final em um arquivo
-        with open('program.asm', 'w') as f:
-            f.write('\n'.join(final_asm))
+            # Define o nome do arquivo de saída
+            output_file = file_name.rsplit('.', 1)[0] + '.asm'
 
-    except Exception as e:
-        print(f"Erro: {e}", file=sys.stderr)
-        sys.exit(1)
+            # Escreve o código assembly final em um arquivo
+            with open(output_file, 'w') as f:
+                f.write('\n'.join(final_asm))
+
+            print(f"Código assembly gerado em '{output_file}'.")
+
+            # Limpa o código gerado e o contador de IDs para o próximo arquivo
+            CodeGenerator.code = []
+            Node.i = 0
+
+        except Exception as e:
+            print(f"Erro ao processar '{file_name}': {e}", file=sys.stderr)
+            continue  # Passa para o próximo arquivo
 
 if __name__ == "__main__":
     main()
