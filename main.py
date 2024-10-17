@@ -258,42 +258,41 @@ class BinOp(Node):
         self.children = [esquerda, direita]
 
     def Evaluate(self, tabela_simbolos):
-        self.children[0].Evaluate(tabela_simbolos)
-        CodeGenerator.add_line('PUSH EAX')
+        # Avalia o operando direito primeiro
         self.children[1].Evaluate(tabela_simbolos)
-        CodeGenerator.add_line('POP EBX')
+        CodeGenerator.add_line('PUSH EAX')  # Empilha o operando direito
+        # Avalia o operando esquerdo
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('POP EBX')   # Desempilha para EBX (operando direito)
+        # Agora, EAX tem o operando esquerdo, EBX tem o operando direito
+
         if self.valor == '+':
-            CodeGenerator.add_line('ADD EAX, EBX')
+            CodeGenerator.add_line('ADD EAX, EBX')  # EAX = EAX + EBX
         elif self.valor == '-':
-            CodeGenerator.add_line('SUB EAX, EBX')
+            CodeGenerator.add_line('SUB EAX, EBX')  # EAX = EAX - EBX
         elif self.valor == '*':
-            CodeGenerator.add_line('IMUL EAX, EBX')
+            CodeGenerator.add_line('IMUL EAX, EBX')  # EAX = EAX * EBX
         elif self.valor == '/':
-            CodeGenerator.add_line('CDQ')
-            CodeGenerator.add_line('IDIV EBX')
+            CodeGenerator.add_line('CDQ')           # Extende EAX para EDX:EAX
+            CodeGenerator.add_line('IDIV EBX')      # EAX = EAX / EBX
         elif self.valor == '&&':
             CodeGenerator.add_line('AND EAX, EBX')
         elif self.valor == '||':
             CodeGenerator.add_line('OR EAX, EBX')
         elif self.valor in ['==', '!=', '<', '>', '<=', '>=']:
-            CodeGenerator.add_line('CMP EAX, EBX')
+            CodeGenerator.add_line('CMP EAX, EBX')  # Compara EAX com EBX
+            CodeGenerator.add_line('MOV EAX, 0')
             if self.valor == '==':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETE AL')
             elif self.valor == '!=':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETNE AL')
             elif self.valor == '<':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETL AL')
             elif self.valor == '>':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETG AL')
             elif self.valor == '<=':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETLE AL')
             elif self.valor == '>=':
-                CodeGenerator.add_line('MOV EAX, 0')
                 CodeGenerator.add_line('SETGE AL')
         else:
             raise Exception(f"Operador '{self.valor}' não suportado")
