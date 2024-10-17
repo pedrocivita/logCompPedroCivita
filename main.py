@@ -1,341 +1,228 @@
 import sys
-from abc import ABC, abstractmethod
 import re
+from abc import ABC, abstractmethod
 
 class Token:
-    def __init__(self, type: str, value):
-        self.type = type
-        self.value = value
+    def __init__(self, tipo, valor):
+        self.tipo = tipo
+        self.valor = valor
 
 class Tokenizer:
-    def __init__(self, source):
-        self.source = source.strip()
-        self.position = 0
+    def __init__(self, fonte):
+        self.fonte = fonte.strip()
+        self.posicao = 0
         self.next = None
         self.selectNext()
 
     def selectNext(self):
-        # Pula espaços em branco
-        while self.position < len(self.source) and \
-              self.source[self.position].isspace():
-            self.position += 1
+        while self.posicao < len(self.fonte) and self.fonte[self.posicao].isspace():
+            self.posicao += 1
 
-        if self.position == len(self.source):
+        if self.posicao >= len(self.fonte):
             self.next = Token('EOF', None)
             return
 
-        current_char = self.source[self.position]
+        char_atual = self.fonte[self.posicao]
 
-        # Reconhece strings entre aspas duplas
-        if current_char == '"':
-            self.position += 1  # Consome a aspas inicial
+        if char_atual == '"':
+            self.posicao += 1  # Consome a aspas inicial
             string = ''
-            while self.position < len(self.source) and \
-                  self.source[self.position] != '"':
-                string += self.source[self.position]
-                self.position += 1
-            if self.position == len(self.source):
+            while self.posicao < len(self.fonte) and self.fonte[self.posicao] != '"':
+                string += self.fonte[self.posicao]
+                self.posicao += 1
+            if self.posicao >= len(self.fonte):
                 raise Exception("String não finalizada")
-            self.position += 1  # Consome a aspas final
+            self.posicao += 1  # Consome a aspas final
             self.next = Token('STRING', string)
+            return
 
-        # Reconhece números inteiros
-        elif current_char.isdigit():
-            num = ''
-            while self.position < len(self.source) and \
-                  self.source[self.position].isdigit():
-                num += self.source[self.position]
-                self.position += 1
-            self.next = Token('INT', int(num))
+        if char_atual.isdigit():
+            numero = ''
+            while self.posicao < len(self.fonte) and self.fonte[self.posicao].isdigit():
+                numero += self.fonte[self.posicao]
+                self.posicao += 1
+            self.next = Token('INT', int(numero))
+            return
 
-        # Reconhece identificadores e palavras reservadas
-        elif current_char.isalpha() or current_char == '_':
-            identifier = ''
-            while self.position < len(self.source) and \
-                 (self.source[self.position].isalnum() or \
-                  self.source[self.position] == '_'):
-                identifier += self.source[self.position]
-                self.position += 1
-
-            if identifier in ['printf', 'if', 'while', 'scanf',
-                              'int', 'str', 'else']:
-                self.next = Token('RESERVED', identifier)
+        if char_atual.isalpha() or char_atual == '_':
+            identificador = ''
+            while self.posicao < len(self.fonte) and (self.fonte[self.posicao].isalnum() or self.fonte[self.posicao] == '_'):
+                identificador += self.fonte[self.posicao]
+                self.posicao += 1
+            if identificador in ['printf', 'scanf', 'if', 'else', 'while', 'int', 'str']:
+                self.next = Token('RESERVED', identificador)
             else:
-                self.next = Token('ID', identifier)
+                self.next = Token('ID', identificador)
+            return
 
-        # Reconhece operadores
-        elif current_char in '+-*/(){}=;><!&|,':
-            if self.source[self.position:self.position+2] in \
-               ['<=', '>=', '==', '!=', '&&', '||']:
-                self.next = Token('OPERATOR',
-                                  self.source[self.position:self.position+2])
-                self.position += 2
+        if char_atual in '+-*/(){}=;><!&|,':
+            if self.fonte[self.posicao:self.posicao+2] in ['<=', '>=', '==', '!=', '&&', '||']:
+                self.next = Token('OPERATOR', self.fonte[self.posicao:self.posicao+2])
+                self.posicao += 2
             else:
-                self.next = Token('OPERATOR', current_char)
-                self.position += 1
+                self.next = Token('OPERATOR', char_atual)
+                self.posicao += 1
+            return
 
-        else:
-            raise Exception(f"Caractere inesperado: {current_char}")
+        raise Exception(f"Caractere inesperado: {char_atual}")
 
 class Parser:
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-
     @staticmethod
-    def run(code):
-        Parser.tokenizer = Tokenizer(code)
-        result = Parser.parseBlock()
-        if Parser.tokenizer.next.type != 'EOF':
-            raise Exception("Dados inesperados após o bloco")
-        return result
+    def run(codigo):
+        Parser.tokenizer = Tokenizer(codigo)
+        resultado = Parser.parseBlock()
+        if Parser.tokenizer.next.tipo != 'EOF':
+            raise Exception("Erro: código após o fim do programa")
+        return resultado
 
     @staticmethod
     def parseBlock():
-        if Parser.tokenizer.next.value != '{':
-            raise Exception("Esperado '{' no início do bloco")
-
-        Parser.tokenizer.selectNext()  # Consome '{'
-
-        statements = []
-
-        while Parser.tokenizer.next.value != '}':
-            if Parser.tokenizer.next.type == 'EOF':
-                raise Exception("Esperado '}' no final do bloco")
-            statement = Parser.parseStatement()
-            statements.append(statement)
-            while Parser.tokenizer.next.value == ';':
-                Parser.tokenizer.selectNext()
-
+        if Parser.tokenizer.next.valor != '{':
+            raise Exception("Esperado '{'")
+        Parser.tokenizer.selectNext()
+        comandos = []
+        while Parser.tokenizer.next.valor != '}':
+            comandos.append(Parser.parseStatement())
         Parser.tokenizer.selectNext()  # Consome '}'
-
-        return Block(statements)
+        return Block(comandos)
 
     @staticmethod
     def parseStatement():
-        while Parser.tokenizer.next.value == ';':
+        if Parser.tokenizer.next.valor == ';':
             Parser.tokenizer.selectNext()
-
-        # Declaração de variáveis
-        if Parser.tokenizer.next.type == 'RESERVED' and \
-           Parser.tokenizer.next.value in ['int', 'str']:
-            var_type = Parser.tokenizer.next.value
-            Parser.tokenizer.selectNext()
-            var_list = []
-
-            while True:
-                if Parser.tokenizer.next.type != 'ID':
-                    raise Exception("Esperado identificador após o tipo")
-                var_name = Parser.tokenizer.next.value
-                Parser.tokenizer.selectNext()
-
-                if Parser.tokenizer.next.value == '=':
-                    Parser.tokenizer.selectNext()
-                    expr = Parser.parseExpression()
-                    var_list.append((var_name, expr))
-                else:
-                    var_list.append((var_name, None))
-
-                if Parser.tokenizer.next.value == ',':
-                    Parser.tokenizer.selectNext()
-                    continue
-                elif Parser.tokenizer.next.value == ';':
-                    Parser.tokenizer.selectNext()
-                    break
-                else:
-                    raise Exception("Esperado ',' ou ';' após declaração")
-
-            return VarDec(var_type, var_list)
-
-        elif Parser.tokenizer.next.type == 'ID':
-            identifier = Parser.tokenizer.next.value
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '=':
-                Parser.tokenizer.selectNext()
-                expr = Parser.parseExpression()
-                if Parser.tokenizer.next.value == ';':
-                    Parser.tokenizer.selectNext()
-                else:
-                    raise Exception("Esperado ';' após expressão")
-                return Assignment(identifier, expr)
-            else:
-                raise Exception("Esperado '=' após identificador")
-
-        elif Parser.tokenizer.next.value == 'printf':
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()
-                expr = Parser.parseExpression()
-                if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()
-                    if Parser.tokenizer.next.value == ';':
-                        Parser.tokenizer.selectNext()
-                    else:
-                        raise Exception("Esperado ';' após printf")
-                    return Print(expr)
-                else:
-                    raise Exception("Esperado ')' após expressão printf")
-            else:
-                raise Exception("Esperado '(' após printf")
-
-        elif Parser.tokenizer.next.value == 'scanf':
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()
-                    if Parser.tokenizer.next.value == ';':
-                        Parser.tokenizer.selectNext()
-                    else:
-                        raise Exception("Esperado ';' após scanf")
-                    return ScanfNode()
-                else:
-                    raise Exception("Esperado ')' após scanf")
-            else:
-                raise Exception("Esperado '(' após scanf")
-
-        elif Parser.tokenizer.next.value == 'if':
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()
-                condition = Parser.parseExpression()
-                if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()
-                    true_block = Parser.parseStatement()
-                    if Parser.tokenizer.next.value == 'else':
-                        Parser.tokenizer.selectNext()
-                        false_block = Parser.parseStatement()
-                        return IfNode(condition, true_block, false_block)
-                    return IfNode(condition, true_block)
-                else:
-                    raise Exception("Esperado ')' após condição")
-            else:
-                raise Exception("Esperado '(' após 'if'")
-
-        elif Parser.tokenizer.next.value == 'while':
-            Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()
-                condition = Parser.parseExpression()
-                if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()
-                    body = Parser.parseStatement()
-                    return WhileNode(condition, body)
-                else:
-                    raise Exception("Esperado ')' após condição")
-            else:
-                raise Exception("Esperado '(' após 'while'")
-
-        elif Parser.tokenizer.next.value == '{':
-            return Parser.parseBlock()
-
-        else:
-            if Parser.tokenizer.next.type != 'EOF':
-                raise Exception(f"Token inesperado: "
-                                f"{Parser.tokenizer.next.value}")
             return NoOp()
+
+        if Parser.tokenizer.next.tipo == 'RESERVED':
+            if Parser.tokenizer.next.valor in ['int', 'str']:
+                tipo = Parser.tokenizer.next.valor
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.tipo != 'ID':
+                    raise Exception("Esperado identificador")
+                nome_var = Parser.tokenizer.next.valor
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.valor == '=':
+                    Parser.tokenizer.selectNext()
+                    expressao = Parser.parseExpression()
+                else:
+                    expressao = None
+                if Parser.tokenizer.next.valor != ';':
+                    raise Exception("Esperado ';'")
+                Parser.tokenizer.selectNext()
+                return VarDec(tipo, [(nome_var, expressao)])
+            elif Parser.tokenizer.next.valor == 'printf':
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.valor != '(':
+                    raise Exception("Esperado '(' após 'printf'")
+                Parser.tokenizer.selectNext()
+                expressao = Parser.parseExpression()
+                if Parser.tokenizer.next.valor != ')':
+                    raise Exception("Esperado ')' após expressão em 'printf'")
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.valor != ';':
+                    raise Exception("Esperado ';'")
+                Parser.tokenizer.selectNext()
+                return Print(expressao)
+            elif Parser.tokenizer.next.valor == 'while':
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.valor != '(':
+                    raise Exception("Esperado '(' após 'while'")
+                Parser.tokenizer.selectNext()
+                condicao = Parser.parseExpression()
+                if Parser.tokenizer.next.valor != ')':
+                    raise Exception("Esperado ')' após condição")
+                Parser.tokenizer.selectNext()
+                comando = Parser.parseStatement()
+                return WhileNode(condicao, comando)
+            elif Parser.tokenizer.next.valor == 'if':
+                Parser.tokenizer.selectNext()
+                if Parser.tokenizer.next.valor != '(':
+                    raise Exception("Esperado '(' após 'if'")
+                Parser.tokenizer.selectNext()
+                condicao = Parser.parseExpression()
+                if Parser.tokenizer.next.valor != ')':
+                    raise Exception("Esperado ')' após condição")
+                Parser.tokenizer.selectNext()
+                comando = Parser.parseStatement()
+                if Parser.tokenizer.next.valor == 'else':
+                    Parser.tokenizer.selectNext()
+                    comando_else = Parser.parseStatement()
+                    return IfNode(condicao, comando, comando_else)
+                return IfNode(condicao, comando)
+        elif Parser.tokenizer.next.tipo == 'ID':
+            nome_var = Parser.tokenizer.next.valor
+            Parser.tokenizer.selectNext()
+            if Parser.tokenizer.next.valor != '=':
+                raise Exception("Esperado '=' após identificador")
+            Parser.tokenizer.selectNext()
+            expressao = Parser.parseExpression()
+            if Parser.tokenizer.next.valor != ';':
+                raise Exception("Esperado ';'")
+            Parser.tokenizer.selectNext()
+            return Assignment(nome_var, expressao)
+        elif Parser.tokenizer.next.valor == '{':
+            return Parser.parseBlock()
+        else:
+            raise Exception(f"Comando desconhecido: {Parser.tokenizer.next.valor}")
 
     @staticmethod
     def parseExpression():
-        result = Parser.parseTerm()
-
-        while Parser.tokenizer.next.type == 'OPERATOR' and \
-              Parser.tokenizer.next.value in ('+', '-', '==', '!=', '>',
-                                              '<', '>=', '<=', '&&', '||'):
-            op = Parser.tokenizer.next.value
+        resultado = Parser.parseTerm()
+        while Parser.tokenizer.next.valor in ['+', '-', '||', '==', '!=', '<', '>', '<=', '>=']:
+            operador = Parser.tokenizer.next.valor
             Parser.tokenizer.selectNext()
-            right = Parser.parseTerm()
-            result = BinOp(op, result, right)
-
-        return result
+            direita = Parser.parseTerm()
+            resultado = BinOp(operador, resultado, direita)
+        return resultado
 
     @staticmethod
     def parseTerm():
-        result = Parser.parseFactor()
-
-        while Parser.tokenizer.next.type == 'OPERATOR' and \
-              Parser.tokenizer.next.value in ('*', '/'):
-            op = Parser.tokenizer.next.value
+        resultado = Parser.parseFactor()
+        while Parser.tokenizer.next.valor in ['*', '/', '&&']:
+            operador = Parser.tokenizer.next.valor
             Parser.tokenizer.selectNext()
-            right = Parser.parseFactor()
-            result = BinOp(op, result, right)
-
-        return result
+            direita = Parser.parseFactor()
+            resultado = BinOp(operador, resultado, direita)
+        return resultado
 
     @staticmethod
     def parseFactor():
-        unary = 1
-        logical_not = False
-
-        while Parser.tokenizer.next.type == 'OPERATOR' and \
-              Parser.tokenizer.next.value in ('-', '+', '!'):
-            if Parser.tokenizer.next.value == '-':
-                unary *= -1
-            elif Parser.tokenizer.next.value == '!':
-                logical_not = not logical_not
+        if Parser.tokenizer.next.valor == '(':
             Parser.tokenizer.selectNext()
-
-        if Parser.tokenizer.next.value == 'scanf':
+            resultado = Parser.parseExpression()
+            if Parser.tokenizer.next.valor != ')':
+                raise Exception("Esperado ')'")
             Parser.tokenizer.selectNext()
-            if Parser.tokenizer.next.value == '(':
-                Parser.tokenizer.selectNext()
-                if Parser.tokenizer.next.value == ')':
-                    Parser.tokenizer.selectNext()
-                    result = ScanfNode()
-                    return result
-                else:
-                    raise Exception("Esperado ')' após 'scanf'")
-            else:
-                raise Exception("Esperado '(' após 'scanf'")
-
-        if Parser.tokenizer.next.value == '(':
+            return resultado
+        elif Parser.tokenizer.next.valor == '!':
             Parser.tokenizer.selectNext()
-            result = Parser.parseExpression()
-            if Parser.tokenizer.next.value != ')':
-                raise Exception("Faltando parêntese de fechamento")
+            fator = Parser.parseFactor()
+            return UnOp('!', fator)
+        elif Parser.tokenizer.next.valor == '-':
             Parser.tokenizer.selectNext()
-            if unary == -1 or logical_not:
-                result = UnOp('-' if unary == -1 else '!', result)
-            return result
-
-        elif Parser.tokenizer.next.type == 'INT':
-            result = IntVal(Parser.tokenizer.next.value)
+            fator = Parser.parseFactor()
+            return UnOp('-', fator)
+        elif Parser.tokenizer.next.tipo == 'INT':
+            valor = Parser.tokenizer.next.valor
             Parser.tokenizer.selectNext()
-            if unary == -1 or logical_not:
-                result = UnOp('-' if unary == -1 else '!', result)
-            return result
-
-        elif Parser.tokenizer.next.type == 'STRING':
-            result = StringVal(Parser.tokenizer.next.value)
+            return IntVal(valor)
+        elif Parser.tokenizer.next.tipo == 'ID':
+            nome_var = Parser.tokenizer.next.valor
             Parser.tokenizer.selectNext()
-            if logical_not:
-                result = UnOp('!', result)
-            if unary == -1:
-                result = UnOp('-', result)
-            return result
-
-        elif Parser.tokenizer.next.type == 'ID':
-            result = Identifier(Parser.tokenizer.next.value)
-            Parser.tokenizer.selectNext()
-            if unary == -1 or logical_not:
-                result = UnOp('-' if unary == -1 else '!', result)
-            return result
-
+            return Identifier(nome_var)
         else:
-            raise Exception("Esperado um inteiro, string, sub-expressão ou "
-                            "identificador")
+            raise Exception(f"Fator inesperado: {Parser.tokenizer.next.valor}")
 
 class PrePro:
     @staticmethod
-    def filter(code: str) -> str:
-        # Remove comentários do tipo /* */
-        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        return code
+    def filter(codigo):
+        codigo = re.sub(r'/\*.*?\*/', '', codigo, flags=re.DOTALL)
+        return codigo
 
 class Node(ABC):
-    i = 0  # Contador estático para IDs únicos
+    i = 0
 
-    def __init__(self, value=None):
-        self.value = value
+    def __init__(self, valor=None):
+        self.valor = valor
         self.children = []
         self.id = Node.newId()
 
@@ -345,309 +232,261 @@ class Node(ABC):
         return Node.i
 
     @abstractmethod
-    def Evaluate(self, symbol_table):
+    def Evaluate(self, tabela_simbolos):
+        pass
+
+class SymbolTable:
+    def __init__(self):
+        self.tabela = {}
+        self.offset = 0
+
+    def declare(self, nome, tipo):
+        if nome in self.tabela:
+            raise Exception(f"Variável '{nome}' já declarada")
+        self.offset -= 4  # DWORD ocupa 4 bytes
+        self.tabela[nome] = {'tipo': tipo, 'offset': self.offset}
+
+    def getter(self, nome):
+        if nome in self.tabela:
+            return self.tabela[nome]
+        else:
+            raise Exception(f"Variável '{nome}' não declarada")
+
+class BinOp(Node):
+    def __init__(self, valor, esquerda, direita):
+        super().__init__(valor)
+        self.children = [esquerda, direita]
+
+    def Evaluate(self, tabela_simbolos):
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('PUSH EAX')
+        self.children[1].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('POP EBX')
+        if self.valor == '+':
+            CodeGenerator.add_line('ADD EAX, EBX')
+        elif self.valor == '-':
+            CodeGenerator.add_line('SUB EAX, EBX')
+        elif self.valor == '*':
+            CodeGenerator.add_line('IMUL EAX, EBX')
+        elif self.valor == '/':
+            CodeGenerator.add_line('CDQ')
+            CodeGenerator.add_line('IDIV EBX')
+        elif self.valor == '&&':
+            CodeGenerator.add_line('AND EAX, EBX')
+        elif self.valor == '||':
+            CodeGenerator.add_line('OR EAX, EBX')
+        elif self.valor in ['==', '!=', '<', '>', '<=', '>=']:
+            CodeGenerator.add_line('CMP EBX, EAX')
+            if self.valor == '==':
+                CodeGenerator.add_line('CALL binop_je')
+            elif self.valor == '!=':
+                CodeGenerator.add_line('CALL binop_jne')
+            elif self.valor == '<':
+                CodeGenerator.add_line('CALL binop_jl')
+            elif self.valor == '>':
+                CodeGenerator.add_line('CALL binop_jg')
+            elif self.valor == '<=':
+                CodeGenerator.add_line('CALL binop_jle')
+            elif self.valor == '>=':
+                CodeGenerator.add_line('CALL binop_jge')
+            CodeGenerator.add_line('MOV EAX, EBX')
+        else:
+            raise Exception(f"Operador '{self.valor}' não suportado")
+
+class UnOp(Node):
+    def __init__(self, valor, filho):
+        super().__init__(valor)
+        self.children = [filho]
+
+    def Evaluate(self, tabela_simbolos):
+        self.children[0].Evaluate(tabela_simbolos)
+        if self.valor == '-':
+            CodeGenerator.add_line('NEG EAX')
+        elif self.valor == '!':
+            CodeGenerator.add_line('CMP EAX, 0')
+            CodeGenerator.add_line('MOV EAX, 0')
+            CodeGenerator.add_line('SETE AL')
+        else:
+            raise Exception(f"Operador '{self.valor}' não suportado")
+
+class IntVal(Node):
+    def __init__(self, valor):
+        super().__init__(valor)
+
+    def Evaluate(self, tabela_simbolos):
+        CodeGenerator.add_line(f'MOV EAX, {self.valor}')
+
+class Identifier(Node):
+    def __init__(self, valor):
+        super().__init__(valor)
+
+    def Evaluate(self, tabela_simbolos):
+        var_info = tabela_simbolos.getter(self.valor)
+        offset = var_info['offset']
+        CodeGenerator.add_line(f'MOV EAX, DWORD [EBP{offset}]')
+
+class Assignment(Node):
+    def __init__(self, nome, expressao):
+        super().__init__()
+        self.nome = nome
+        self.children = [expressao]
+
+    def Evaluate(self, tabela_simbolos):
+        var_info = tabela_simbolos.getter(self.nome)
+        offset = var_info['offset']
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line(f'MOV DWORD [EBP{offset}], EAX')
+
+class VarDec(Node):
+    def __init__(self, tipo, lista_variaveis):
+        super().__init__()
+        self.tipo = tipo
+        self.lista_variaveis = lista_variaveis
+
+    def Evaluate(self, tabela_simbolos):
+        for nome, expressao in self.lista_variaveis:
+            tabela_simbolos.declare(nome, self.tipo)
+            var_info = tabela_simbolos.getter(nome)
+            offset = var_info['offset']
+            CodeGenerator.add_line('PUSH DWORD 0')
+            if expressao is not None:
+                expressao.Evaluate(tabela_simbolos)
+                CodeGenerator.add_line(f'MOV DWORD [EBP{offset}], EAX')
+
+class Print(Node):
+    def __init__(self, expressao):
+        super().__init__()
+        self.children = [expressao]
+
+    def Evaluate(self, tabela_simbolos):
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('PUSH EAX')
+        CodeGenerator.add_line('CALL print')
+        CodeGenerator.add_line('ADD ESP, 4')
+
+class Block(Node):
+    def __init__(self, comandos):
+        super().__init__()
+        self.children = comandos
+
+    def Evaluate(self, tabela_simbolos):
+        for comando in self.children:
+            comando.Evaluate(tabela_simbolos)
+
+class WhileNode(Node):
+    def __init__(self, condicao, comando):
+        super().__init__()
+        self.children = [condicao, comando]
+
+    def Evaluate(self, tabela_simbolos):
+        label_inicio = f'LOOP_{self.id}'
+        label_fim = f'ENDLOOP_{self.id}'
+        CodeGenerator.add_line(f'{label_inicio}:')
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('CMP EAX, 0')
+        CodeGenerator.add_line(f'JE {label_fim}')
+        self.children[1].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line(f'JMP {label_inicio}')
+        CodeGenerator.add_line(f'{label_fim}:')
+
+class IfNode(Node):
+    def __init__(self, condicao, comando_if, comando_else=None):
+        super().__init__()
+        self.children = [condicao, comando_if]
+        if comando_else:
+            self.children.append(comando_else)
+
+    def Evaluate(self, tabela_simbolos):
+        label_else = f'ELSE_{self.id}'
+        label_fim = f'ENDIF_{self.id}'
+        self.children[0].Evaluate(tabela_simbolos)
+        CodeGenerator.add_line('CMP EAX, 0')
+        if len(self.children) == 3:
+            CodeGenerator.add_line(f'JE {label_else}')
+            self.children[1].Evaluate(tabela_simbolos)
+            CodeGenerator.add_line(f'JMP {label_fim}')
+            CodeGenerator.add_line(f'{label_else}:')
+            self.children[2].Evaluate(tabela_simbolos)
+            CodeGenerator.add_line(f'{label_fim}:')
+        else:
+            CodeGenerator.add_line(f'JE {label_fim}')
+            self.children[1].Evaluate(tabela_simbolos)
+            CodeGenerator.add_line(f'{label_fim}:')
+
+class NoOp(Node):
+    def Evaluate(self, tabela_simbolos):
         pass
 
 class CodeGenerator:
     code = []
-    labels = set()
 
     @staticmethod
     def add_line(line):
-        # Limita o comprimento da linha a 70 caracteres
-        for l in line.split('\n'):
-            CodeGenerator.code.append(l.strip()[:70])
+        CodeGenerator.code.append(line.strip()[:70])
 
     @staticmethod
     def get_code():
         return '\n'.join(CodeGenerator.code)
 
-class BinOp(Node):
-    def __init__(self, value, left, right):
-        super().__init__(value)
-        self.children = [left, right]
-
-    def Evaluate(self, symbol_table):
-        # Avalia lado esquerdo
-        left_value, left_type = self.children[0].Evaluate(symbol_table)
-        CodeGenerator.add_line("PUSH EAX")
-        # Avalia lado direito
-        right_value, right_type = self.children[1].Evaluate(symbol_table)
-        CodeGenerator.add_line("POP EBX")
-
-        if self.value == '+':
-            CodeGenerator.add_line("ADD EAX, EBX")
-            result_type = 'int'
-        elif self.value == '-':
-            CodeGenerator.add_line("SUB EAX, EBX")
-            result_type = 'int'
-        elif self.value == '*':
-            CodeGenerator.add_line("IMUL EAX, EBX")
-            result_type = 'int'
-        elif self.value == '/':
-            CodeGenerator.add_line("CDQ")
-            CodeGenerator.add_line("IDIV EBX")
-            result_type = 'int'
-        elif self.value == '==':
-            CodeGenerator.add_line("CMP EBX, EAX")
-            CodeGenerator.add_line("CALL binop_je")
-            CodeGenerator.add_line("MOV EAX, EBX")
-            result_type = 'int'
-        elif self.value == '<':
-            CodeGenerator.add_line("CMP EAX, EBX")
-            CodeGenerator.add_line("CALL binop_jl")
-            CodeGenerator.add_line("MOV EAX, EBX")
-            result_type = 'int'
-        elif self.value == '>':
-            CodeGenerator.add_line("CMP EAX, EBX")
-            CodeGenerator.add_line("CALL binop_jg")
-            CodeGenerator.add_line("MOV EAX, EBX")
-            result_type = 'int'
-        else:
-            raise Exception(f"Operador '{self.value}' não suportado")
-
-        return (None, result_type)
-
-class UnOp(Node):
-    def __init__(self, value, child):
-        super().__init__(value)
-        self.children = [child]
-
-    def Evaluate(self, symbol_table):
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        if self.value == '-':
-            CodeGenerator.add_line("NEG EAX")
-        elif self.value == '!':
-            CodeGenerator.add_line("CMP EAX, 0")
-            CodeGenerator.add_line("MOV EAX, 0")
-            CodeGenerator.add_line("SETE AL")
-        else:
-            raise Exception(f"Operador unário '{self.value}' não suportado")
-        return (None, var_type)
-
-class IntVal(Node):
-    def __init__(self, value):
-        super().__init__(value)
-
-    def Evaluate(self, symbol_table):
-        CodeGenerator.add_line(f"MOV EAX, {self.value}")
-        return (self.value, 'int')
-
-class StringVal(Node):
-    def __init__(self, value):
-        super().__init__(value)
-
-    def Evaluate(self, symbol_table):
-        raise NotImplementedError("Strings não suportadas neste roteiro")
-
-class NoOp(Node):
-    def Evaluate(self, symbol_table):
-        return (None, None)
-
-class SymbolTable:
-    def __init__(self):
-        self.symbols = {}
-        self.offset = 0  # Deslocamento atual do EBP
-
-    def declare(self, identifier, var_type):
-        if identifier in self.symbols:
-            raise Exception(f"Variável '{identifier}' já declarada.")
-        self.offset -= 4  # Cada variável ocupa 4 bytes
-        self.symbols[identifier] = {
-            'offset': self.offset,
-            'type': var_type,
-            'value': None
-        }
-
-    def get(self, identifier):
-        if identifier in self.symbols:
-            symbol = self.symbols[identifier]
-            return symbol['value'], symbol['type'], symbol['offset']
-        else:
-            raise Exception(f"Variável '{identifier}' não declarada.")
-
-    def set(self, identifier, value, var_type):
-        if identifier in self.symbols:
-            expected_type = self.symbols[identifier]['type']
-            if var_type != expected_type and \
-               not (expected_type == 'int' and var_type == 'bool'):
-                raise Exception(f"Tipo incompatível para '{identifier}'. "
-                                f"Esperado '{expected_type}', recebido "
-                                f"'{var_type}'.")
-            self.symbols[identifier]['value'] = value
-        else:
-            raise Exception(f"Variável '{identifier}' não declarada.")
-
-class Identifier(Node):
-    def __init__(self, value):
-        super().__init__(value)
-
-    def Evaluate(self, symbol_table):
-        value, var_type, offset = symbol_table.get(self.value)
-        CodeGenerator.add_line(f"MOV EAX, DWORD [EBP{offset}]")
-        return (value, var_type)
-
-class Assignment(Node):
-    def __init__(self, identifier, expression):
-        super().__init__()
-        self.identifier = identifier
-        self.children = [expression]
-
-    def Evaluate(self, symbol_table):
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        offset = symbol_table.symbols[self.identifier]['offset']
-        CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], EAX")
-        symbol_table.set(self.identifier, value, var_type)
-
-class VarDec(Node):
-    def __init__(self, var_type, var_list):
-        super().__init__()
-        self.var_type = var_type
-        self.var_list = var_list
-
-    def Evaluate(self, symbol_table):
-        for var_name, expr in self.var_list:
-            symbol_table.declare(var_name, self.var_type)
-            offset = symbol_table.symbols[var_name]['offset']
-            if expr:
-                value, expr_type = expr.Evaluate(symbol_table)
-                if expr_type != self.var_type and \
-                   not (self.var_type == 'int' and expr_type == 'bool'):
-                    raise Exception(f"Tipo incompatível na atribuição para "
-                                    f"'{var_name}'. Esperado '{self.var_type}',"
-                                    f" recebido '{expr_type}'.")
-                CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], EAX")
-            else:
-                CodeGenerator.add_line(f"MOV DWORD [EBP{offset}], 0")
-
-class ScanfNode(Node):
-    def Evaluate(self, symbol_table):
-        raise NotImplementedError("scanf não suportado neste roteiro")
-
-class Print(Node):
-    def __init__(self, expression):
-        super().__init__()
-        self.children = [expression]
-
-    def Evaluate(self, symbol_table):
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        CodeGenerator.add_line("PUSH EAX")
-        CodeGenerator.add_line("CALL print")
-        CodeGenerator.add_line("POP EAX")
-
-class Block(Node):
-    def __init__(self, statements):
-        super().__init__()
-        self.children = statements
-
-    def Evaluate(self, symbol_table):
-        CodeGenerator.add_line("PUSH EBP")
-        CodeGenerator.add_line("MOV EBP, ESP")
-        for statement in self.children:
-            statement.Evaluate(symbol_table)
-        CodeGenerator.add_line("MOV ESP, EBP")
-        CodeGenerator.add_line("POP EBP")
-        return (None, None)
-
-class IfNode(Node):
-    def __init__(self, condition, if_block, else_block=None):
-        super().__init__()
-        self.children = [condition, if_block]
-        if else_block:
-            self.children.append(else_block)
-
-    def Evaluate(self, symbol_table):
-        end_label = f"ENDIF_{self.id}"
-        else_label = f"ELSE_{self.id}"
-
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        CodeGenerator.add_line("CMP EAX, 0")
-        if len(self.children) == 3:
-            CodeGenerator.add_line(f"JE {else_label}")
-            self.children[1].Evaluate(symbol_table)
-            CodeGenerator.add_line(f"JMP {end_label}")
-            CodeGenerator.add_line(f"{else_label}:")
-            self.children[2].Evaluate(symbol_table)
-        else:
-            CodeGenerator.add_line(f"JE {end_label}")
-            self.children[1].Evaluate(symbol_table)
-        CodeGenerator.add_line(f"{end_label}:")
-
-class WhileNode(Node):
-    def __init__(self, condition, block):
-        super().__init__()
-        self.children = [condition, block]
-
-    def Evaluate(self, symbol_table):
-        start_label = f"LOOP_{self.id}"
-        end_label = f"ENDLOOP_{self.id}"
-
-        CodeGenerator.add_line(f"{start_label}:")
-        value, var_type = self.children[0].Evaluate(symbol_table)
-        CodeGenerator.add_line("CMP EAX, 0")
-        CodeGenerator.add_line(f"JE {end_label}")
-        self.children[1].Evaluate(symbol_table)
-        CodeGenerator.add_line(f"JMP {start_label}")
-        CodeGenerator.add_line(f"{end_label}:")
-
 def main():
     if len(sys.argv) > 1:
-        file_names = sys.argv[1:]  # Lista de arquivos de entrada
+        nome_arquivo = sys.argv[1]
     else:
-        print("Erro: Nenhum arquivo de entrada fornecido.", file=sys.stderr)
+        print("Erro: Nenhum arquivo de entrada fornecido.")
         sys.exit(1)
 
-    for file_name in file_names:
-        try:
-            with open(file_name, 'r') as file:
-                code = file.read()
-        except FileNotFoundError:
-            print(f"Erro: Arquivo '{file_name}' não encontrado.", file=sys.stderr)
-            continue  # Passa para o próximo arquivo
+    try:
+        with open(nome_arquivo, 'r') as f:
+            codigo = f.read()
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{nome_arquivo}' não encontrado.")
+        sys.exit(1)
 
-        try:
-            # Remove comentários do código
-            filtered_code = PrePro.filter(code)
+    codigo_filtrado = PrePro.filter(codigo)
 
-            # Executa o Parser e gera a AST
-            ast = Parser.run(filtered_code)
+    try:
+        ast = Parser.run(codigo_filtrado)
+    except Exception as e:
+        print(f"Erro de parsing: {e}")
+        sys.exit(1)
 
-            # Criação da tabela de símbolos
-            symbol_table = SymbolTable()
+    tabela_simbolos = SymbolTable()
+    CodeGenerator.add_line('global main')
+    CodeGenerator.add_line('section .text')
+    CodeGenerator.add_line('main:')
+    CodeGenerator.add_line('PUSH EBP')
+    CodeGenerator.add_line('MOV EBP, ESP')
 
-            # Executa a AST para gerar o código assembly
-            ast.Evaluate(symbol_table)
+    ast.Evaluate(tabela_simbolos)
 
-            # Lê o base.asm
-            with open('base.asm', 'r') as f:
-                base_asm = f.readlines()
+    CodeGenerator.add_line('MOV ESP, EBP')
+    CodeGenerator.add_line('POP EBP')
+    CodeGenerator.add_line('RET')
 
-            # Insere o código gerado no lugar apropriado
-            final_asm = []
-            for line in base_asm:
-                if '; código gerado pelo compilador' in line:
-                    # Insere o código gerado aqui
-                    for asm_line in CodeGenerator.code:
-                        final_asm.append('  ' + asm_line)
-                else:
-                    final_asm.append(line.rstrip())
+    # Lê o base.asm
+    try:
+        with open('base.asm', 'r') as f:
+            base_asm = f.readlines()
+    except FileNotFoundError:
+        print("Erro: Arquivo 'base.asm' não encontrado.")
+        sys.exit(1)
 
-            # Define o nome do arquivo de saída
-            output_file = file_name.rsplit('.', 1)[0] + '.asm'
+    # Insere o código gerado no lugar apropriado
+    final_asm = []
+    for linha in base_asm:
+        if '; codigo gerado pelo compilador' in linha:
+            for linha_codigo in CodeGenerator.code:
+                final_asm.append('  ' + linha_codigo)
+        else:
+            final_asm.append(linha.rstrip())
 
-            # Escreve o código assembly final em um arquivo
-            with open(output_file, 'w') as f:
-                f.write('\n'.join(final_asm))
+    # **Determinação do Nome do Arquivo de Saída**
+    # Aqui usamos o nome do arquivo de entrada para gerar o nome do arquivo assembly de saída.
+    nome_saida = nome_arquivo.rsplit('.', 1)[0] + '.asm'
+    with open(nome_saida, 'w') as f:
+        f.write('\n'.join(final_asm))
 
-            print(f"Código assembly gerado em '{output_file}'.")
+    print(f"Código assembly gerado em '{nome_saida}'.")
 
-            # Limpa o código gerado e o contador de IDs para o próximo arquivo
-            CodeGenerator.code = []
-            Node.i = 0
-
-        except Exception as e:
-            print(f"Erro ao processar '{file_name}': {e}", file=sys.stderr)
-            continue  # Passa para o próximo arquivo
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
