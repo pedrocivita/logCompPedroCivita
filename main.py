@@ -276,20 +276,25 @@ class BinOp(Node):
         elif self.valor == '||':
             CodeGenerator.add_line('OR EAX, EBX')
         elif self.valor in ['==', '!=', '<', '>', '<=', '>=']:
-            CodeGenerator.add_line('CMP EBX, EAX')
+            CodeGenerator.add_line('CMP EAX, EBX')
             if self.valor == '==':
-                CodeGenerator.add_line('CALL binop_je')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETE AL')
             elif self.valor == '!=':
-                CodeGenerator.add_line('CALL binop_jne')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETNE AL')
             elif self.valor == '<':
-                CodeGenerator.add_line('CALL binop_jl')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETL AL')
             elif self.valor == '>':
-                CodeGenerator.add_line('CALL binop_jg')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETG AL')
             elif self.valor == '<=':
-                CodeGenerator.add_line('CALL binop_jle')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETLE AL')
             elif self.valor == '>=':
-                CodeGenerator.add_line('CALL binop_jge')
-            CodeGenerator.add_line('MOV EAX, EBX')
+                CodeGenerator.add_line('MOV EAX, 0')
+                CodeGenerator.add_line('SETGE AL')
         else:
             raise Exception(f"Operador '{self.valor}' não suportado")
 
@@ -426,7 +431,7 @@ class CodeGenerator:
 
     @staticmethod
     def initialize():
-        # Definir 'main' em vez de '_start'
+        CodeGenerator.code = []
         CodeGenerator.add_line('global main')
         CodeGenerator.add_line('section .text')
         CodeGenerator.add_line('main:')
@@ -439,6 +444,9 @@ class CodeGenerator:
         CodeGenerator.add_line('POP EBP')
         CodeGenerator.add_line('RET')
 
+    @staticmethod
+    def get_code():
+        return '\n'.join(CodeGenerator.code)
 
 def main():
     if len(sys.argv) > 1:
@@ -463,17 +471,15 @@ def main():
         sys.exit(1)
 
     tabela_simbolos = SymbolTable()
-    CodeGenerator.add_line('global main')
-    CodeGenerator.add_line('section .text')
-    CodeGenerator.add_line('main:')
-    CodeGenerator.add_line('PUSH EBP')
-    CodeGenerator.add_line('MOV EBP, ESP')
 
+    # Inicializa o CodeGenerator
+    CodeGenerator.initialize()
+
+    # Avalia a AST para gerar o código assembly
     ast.Evaluate(tabela_simbolos)
 
-    CodeGenerator.add_line('MOV ESP, EBP')
-    CodeGenerator.add_line('POP EBP')
-    CodeGenerator.add_line('RET')
+    # Finaliza o código gerado
+    CodeGenerator.finalize()
 
     # Lê o base.asm
     try:
@@ -492,8 +498,7 @@ def main():
         else:
             final_asm.append(linha.rstrip())
 
-    # **Determinação do Nome do Arquivo de Saída**
-    # Aqui usamos o nome do arquivo de entrada para gerar o nome do arquivo assembly de saída.
+    # Determinação do nome do arquivo de saída
     nome_saida = nome_arquivo.rsplit('.', 1)[0] + '.asm'
     with open(nome_saida, 'w') as f:
         f.write('\n'.join(final_asm))
