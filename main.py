@@ -432,17 +432,11 @@ class CodeGenerator:
     @staticmethod
     def initialize():
         CodeGenerator.code = []
-        CodeGenerator.add_line('global main')
-        CodeGenerator.add_line('section .text')
-        CodeGenerator.add_line('main:')
-        CodeGenerator.add_line('PUSH EBP')
-        CodeGenerator.add_line('MOV EBP, ESP')
+        # Não adicionamos 'global main' ou 'main:', pois o base.asm já define 'main'
 
     @staticmethod
     def finalize():
-        CodeGenerator.add_line('MOV ESP, EBP')
-        CodeGenerator.add_line('POP EBP')
-        CodeGenerator.add_line('RET')
+        pass  # Não precisamos adicionar código de finalização aqui
 
     @staticmethod
     def get_code():
