@@ -541,8 +541,13 @@ class Block(Node):
         self.children = statements
 
     def Evaluate(self, symbol_table):
+        CodeGenerator.add_line("PUSH EBP")
+        CodeGenerator.add_line("MOV EBP, ESP")
         for statement in self.children:
             statement.Evaluate(symbol_table)
+        CodeGenerator.add_line("MOV ESP, EBP")
+        CodeGenerator.add_line("POP EBP")
+        return (None, None)
 
 class IfNode(Node):
     def __init__(self, condition, if_block, else_block=None):
@@ -620,7 +625,7 @@ def main():
             # Insere o código gerado no lugar apropriado
             final_asm = []
             for line in base_asm:
-                if '; codigo gerado pelo compilador' in line:
+                if '; código gerado pelo compilador' in line:
                     # Insere o código gerado aqui
                     for asm_line in CodeGenerator.code:
                         final_asm.append('  ' + asm_line)
