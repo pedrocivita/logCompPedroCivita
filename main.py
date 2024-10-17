@@ -422,11 +422,23 @@ class CodeGenerator:
 
     @staticmethod
     def add_line(line):
-        CodeGenerator.code.append(line.strip()[:70])
+        CodeGenerator.code.append(line.strip())
 
     @staticmethod
-    def get_code():
-        return '\n'.join(CodeGenerator.code)
+    def initialize():
+        # Definir 'main' em vez de '_start'
+        CodeGenerator.add_line('global main')
+        CodeGenerator.add_line('section .text')
+        CodeGenerator.add_line('main:')
+        CodeGenerator.add_line('PUSH EBP')
+        CodeGenerator.add_line('MOV EBP, ESP')
+
+    @staticmethod
+    def finalize():
+        CodeGenerator.add_line('MOV ESP, EBP')
+        CodeGenerator.add_line('POP EBP')
+        CodeGenerator.add_line('RET')
+
 
 def main():
     if len(sys.argv) > 1:
