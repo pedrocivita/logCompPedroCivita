@@ -84,16 +84,12 @@ class Parser:
                 func_decl = Parser.parseFunctionDecl()
                 functions.append(func_decl)
             else:
-                break  # Exit loop to parse main function
+                raise Exception(f"Token inesperado: {Parser.tokenizer.next.value}")
 
-        # Parse main function
-        if Parser.tokenizer.next.type == 'RESERVED' and Parser.tokenizer.next.value in ['int', 'void', 'str']:
-            main_func = Parser.parseFunctionDecl()
-            if main_func.name != 'main':
-                raise Exception("Esperado a função 'main'")
-            functions.append(main_func)
-        else:
-            raise Exception("Esperado declaração de função")
+        # Check if 'main' function is declared
+        main_declared = any(func.name == 'main' for func in functions)
+        if not main_declared:
+            raise Exception("Esperado a função 'main'")
 
         # Create a Program node to hold all functions
         return Program(functions)
@@ -567,7 +563,7 @@ class BinOp(Node):
 
         # Relational operators
         elif self.value in ('==', '!=', '<', '<=', '>', '>='):
-            if left_type == right_type:
+            if left_type == right_type or (left_type in ('int', 'bool') and right_type in ('int', 'bool')):
                 if self.value == '==':
                     return (int(left_val == right_val), 'int')
                 elif self.value == '!=':
