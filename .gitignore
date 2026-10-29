@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+
+# OS and editor
+.DS_Store
+.vscode/
